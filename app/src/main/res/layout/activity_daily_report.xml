@@ -1,0 +1,456 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_primary"
+    android:fitsSystemWindows="true">
+
+    <!-- ── AppBar ─────────────────────────────────────────────── -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_primary"
+        app:elevation="0dp"
+        android:fitsSystemWindows="true">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_back"
+            app:navigationIconTint="@color/text_primary"
+            app:title="@string/report_title"
+            app:titleTextAppearance="@style/TextAppearance.ScrollGuard.Title"
+            app:titleTextColor="@color/text_primary">
+
+            <!-- Date selector pill -->
+            <TextView
+                android:id="@+id/tv_date_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginEnd="@dimen/space_16"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:background="@drawable/bg_chip_unselected"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/color_primary"
+                tools:text="Today" />
+        </com.google.android.material.appbar.MaterialToolbar>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- ── Scrollable body ──────────────────────────────────── -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingBottom="@dimen/space_32"
+        android:clipToPadding="false"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/screen_padding_h">
+
+
+            <!-- ── Summary stats row ──────────────────────── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="20dp">
+
+                <!-- Total Screen Time card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/border"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <ImageView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:src="@drawable/ic_chart"
+                            android:layout_marginBottom="8dp"
+                            app:tint="@color/color_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_total_screen_time"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="22sp"
+                            android:textColor="@color/text_primary"
+                            android:fontFamily="sans-serif-medium"
+                            tools:text="3h 42m" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/report_total_time"
+                            android:textSize="11sp"
+                            android:textColor="@color/text_hint" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Apps Blocked card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/border"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <ImageView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:src="@drawable/ic_shield"
+                            android:layout_marginBottom="8dp"
+                            app:tint="@color/color_success" />
+
+                        <TextView
+                            android:id="@+id/tv_apps_blocked_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="22sp"
+                            android:textColor="@color/text_primary"
+                            android:fontFamily="sans-serif-medium"
+                            tools:text="7" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/report_blocks"
+                            android:textSize="11sp"
+                            android:textColor="@color/text_hint" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Second row: Limits Hit + Saved Time -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="24dp">
+
+                <!-- Limits Hit -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/border"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <ImageView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:src="@drawable/ic_warning"
+                            android:layout_marginBottom="8dp"
+                            app:tint="@color/color_warning" />
+
+                        <TextView
+                            android:id="@+id/tv_limits_hit"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="22sp"
+                            android:textColor="@color/text_primary"
+                            android:fontFamily="sans-serif-medium"
+                            tools:text="3" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/report_limits_hit"
+                            android:textSize="11sp"
+                            android:textColor="@color/text_hint" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Time Saved -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    app:cardBackgroundColor="@color/bg_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/border"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <ImageView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:src="@drawable/ic_check_circle"
+                            android:layout_marginBottom="8dp"
+                            app:tint="@color/color_primary" />
+
+                        <TextView
+                            android:id="@+id/tv_time_saved"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="22sp"
+                            android:textColor="@color/text_primary"
+                            android:fontFamily="sans-serif-medium"
+                            tools:text="1h 18m" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/report_time_saved"
+                            android:textSize="11sp"
+                            android:textColor="@color/text_hint" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- ── Weekly Bar Chart card ────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="@color/bg_card"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/border"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <!-- Card header -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="20dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/report_weekly_chart"
+                            android:textSize="15sp"
+                            android:textColor="@color/text_primary"
+                            android:fontFamily="sans-serif-medium" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/report_this_week"
+                            android:textSize="12sp"
+                            android:textColor="@color/text_hint" />
+                    </LinearLayout>
+
+                    <!-- Bar chart — 7 columns (Mon–Sun) -->
+                    <LinearLayout
+                        android:id="@+id/ll_chart_bars"
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:baselineAligned="false" android:orientation="horizontal"
+                        android:gravity="bottom"
+                        android:weightSum="7">
+
+                        <!-- Mon -->
+                        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                            android:layout_weight="1" android:orientation="vertical" android:gravity="bottom|center_horizontal">
+                            <View android:id="@+id/bar_mon"
+                                android:layout_width="14dp" android:layout_height="60dp"
+                                android:background="@drawable/bg_chart_bar" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp" android:text="M" android:textSize="10sp"
+                                android:textColor="@color/text_hint" />
+                        </LinearLayout>
+
+                        <!-- Tue -->
+                        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                            android:layout_weight="1" android:orientation="vertical" android:gravity="bottom|center_horizontal">
+                            <View android:id="@+id/bar_tue"
+                                android:layout_width="14dp" android:layout_height="90dp"
+                                android:background="@drawable/bg_chart_bar" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp" android:text="T" android:textSize="10sp"
+                                android:textColor="@color/text_hint" />
+                        </LinearLayout>
+
+                        <!-- Wed -->
+                        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                            android:layout_weight="1" android:orientation="vertical" android:gravity="bottom|center_horizontal">
+                            <View android:id="@+id/bar_wed"
+                                android:layout_width="14dp" android:layout_height="45dp"
+                                android:background="@drawable/bg_chart_bar" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp" android:text="W" android:textSize="10sp"
+                                android:textColor="@color/text_hint" />
+                        </LinearLayout>
+
+                        <!-- Thu -->
+                        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                            android:layout_weight="1" android:orientation="vertical" android:gravity="bottom|center_horizontal">
+                            <View android:id="@+id/bar_thu"
+                                android:layout_width="14dp" android:layout_height="100dp"
+                                android:background="@drawable/bg_chart_bar" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp" android:text="T" android:textSize="10sp"
+                                android:textColor="@color/text_hint" />
+                        </LinearLayout>
+
+                        <!-- Fri -->
+                        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                            android:layout_weight="1" android:orientation="vertical" android:gravity="bottom|center_horizontal">
+                            <View android:id="@+id/bar_fri"
+                                android:layout_width="14dp" android:layout_height="75dp"
+                                android:background="@drawable/bg_chart_bar" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp" android:text="F" android:textSize="10sp"
+                                android:textColor="@color/text_hint" />
+                        </LinearLayout>
+
+                        <!-- Sat -->
+                        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                            android:layout_weight="1" android:orientation="vertical" android:gravity="bottom|center_horizontal">
+                            <View android:id="@+id/bar_sat"
+                                android:layout_width="14dp" android:layout_height="110dp"
+                                android:background="@drawable/bg_chart_bar" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp" android:text="S" android:textSize="10sp"
+                                android:textColor="@color/color_primary"
+                                android:fontFamily="sans-serif-medium" />
+                        </LinearLayout>
+
+                        <!-- Sun (today highlight) -->
+                        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+                            android:layout_weight="1" android:orientation="vertical" android:gravity="bottom|center_horizontal">
+                            <View android:id="@+id/bar_sun"
+                                android:layout_width="14dp" android:layout_height="55dp"
+                                android:background="@drawable/bg_chart_bar"
+                                android:alpha="0.5" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp" android:text="S" android:textSize="10sp"
+                                android:textColor="@color/text_secondary" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Peak day indicator -->
+                    <TextView
+                        android:id="@+id/tv_peak_day"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        tools:text="📈 Peak: Thursday · 3h 20m" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── Per-App Breakdown header ──────────────────── -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:text="@string/report_app_breakdown"
+                android:textSize="13sp"
+                android:letterSpacing="0.06"
+                android:textAllCaps="true"
+                android:textColor="@color/text_hint" />
+
+            <!-- ── RecyclerView: per-app report rows ─────────── -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_app_report"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_daily_report_row" />
+
+            <!-- ── Motivational insight card ─────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                app:cardBackgroundColor="@color/bg_card"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/border"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:text="💡"
+                        android:textSize="22sp"
+                        android:gravity="center"
+                        android:layout_marginEnd="14dp" />
+
+                    <TextView
+                        android:id="@+id/tv_insight"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary"
+                        android:lineSpacingMultiplier="1.45"
+                        tools:text="You saved 1h 18m today by staying within your limits. Keep going!" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

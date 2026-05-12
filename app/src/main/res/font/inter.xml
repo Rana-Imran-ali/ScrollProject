@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Inter font family via Google Fonts downloadable fonts API.
+
+  HOW THIS WORKS:
+  Android downloads the Inter font from Google Fonts on first launch
+  and caches it permanently. No internet = falls back to Roboto.
+
+  If you prefer to bundle TTF files offline:
+  1. Download Inter from https://fonts.google.com/specimen/Inter
+  2. Place inter_regular.ttf, inter_medium.ttf, inter_semibold.ttf, inter_bold.ttf
+     in res/font/
+  3. Replace this file with a <font-family> block referencing those files
+-->
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:fontProviderAuthority="com.google.android.gms.fonts"
+    app:fontProviderPackage="com.google.android.gms"
+    app:fontProviderQuery="Inter"
+    app:fontProviderCerts="@array/com_google_android_gms_fonts_certs">
+</font-family>

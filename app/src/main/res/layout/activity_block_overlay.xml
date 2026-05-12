@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_primary">
+
+    <ImageView
+        android:id="@+id/ivBackgroundGlow"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/bg_glow_cyan"
+        android:scaleType="centerCrop"
+        android:alpha="0.2" />
+
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.ScrollGuard.Card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="32dp"
+        app:cardBackgroundColor="@color/bg_card_hero"
+        app:strokeColor="@color/color_cyan"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="32dp"
+            android:gravity="center">
+
+            <!-- App icon -->
+            <ImageView
+                android:id="@+id/ivBlockedAppIcon"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:background="@drawable/bg_circle_cyan"
+                android:padding="16dp"
+                android:src="@drawable/ic_shield"
+                app:tint="@color/bg_primary" />
+
+            <!-- App name being blocked -->
+            <TextView
+                android:id="@+id/tvBlockedAppName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:textAppearance="@style/TextAppearance.ScrollGuard.Body"
+                android:textColor="@color/text_secondary"
+                android:textAlignment="center" />
+
+            <!-- Block title -->
+            <TextView
+                android:id="@+id/tvBlockTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Time's Up!"
+                android:textAlignment="center"
+                android:textAppearance="@style/TextAppearance.ScrollGuard.Display" />
+
+            <!-- Block subtitle / reason -->
+            <TextView
+                android:id="@+id/tvBlockSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="You've reached your daily limit."
+                android:textAlignment="center"
+                android:textAppearance="@style/TextAppearance.ScrollGuard.Body" />
+
+            <!-- Daily limit info -->
+            <TextView
+                android:id="@+id/tvDailyLimit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textAlignment="center"
+                android:textAppearance="@style/TextAppearance.ScrollGuard.Label"
+                android:textColor="@color/color_cyan" />
+
+            <View
+                android:layout_width="40dp"
+                android:layout_height="2dp"
+                android:layout_marginVertical="24dp"
+                android:background="@color/divider" />
+
+            <!-- Quote -->
+            <TextView
+                android:id="@+id/tvQuote"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="&quot;The key is in not spending time, but in investing it.&quot;"
+                android:textStyle="italic"
+                android:textAlignment="center"
+                android:textAppearance="@style/TextAppearance.ScrollGuard.Body"
+                android:textColor="@color/color_cyan" />
+
+            <!-- Adjust limit button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAdjustLimit"
+                style="@style/Widget.ScrollGuard.Button.Outline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="Adjust My Limit" />
+
+            <!-- Dismiss button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDismiss"
+                style="@style/Widget.ScrollGuard.Button.Text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="OK, I'll wait" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

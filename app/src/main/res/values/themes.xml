@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ═══════════════════════════════════════════════════
+         Base application theme — Material 3
+    ═══════════════════════════════════════════════════ -->
+    <style name="Theme.ScrollGuard" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Brand colors -->
+        <item name="colorPrimary">@color/color_primary</item>
+        <item name="colorOnPrimary">@color/text_on_primary</item>
+        <item name="colorPrimaryContainer">@color/color_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/color_on_primary_container</item>
+
+        <!-- Surface roles -->
+        <item name="colorSurface">@color/bg_surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorSurfaceVariant">@color/color_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        <item name="colorOutline">@color/color_outline</item>
+        <item name="colorOutlineVariant">@color/color_outline_variant</item>
+
+        <!-- Window -->
+        <item name="android:colorBackground">@color/bg_primary</item>
+        <item name="android:windowBackground">@color/bg_primary</item>
+        <item name="android:statusBarColor">@color/bg_primary</item>
+        <item name="android:navigationBarColor">@color/bg_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Global font — Inter via downloadable fonts -->
+        <item name="android:fontFamily">sans-serif</item>
+
+        <!-- M3 typography scale -->
+        <item name="textAppearanceDisplayLarge">@style/TextAppearance.ScrollGuard.Display</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.ScrollGuard.Headline</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.ScrollGuard.Title</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.ScrollGuard.Body</item>
+        <item name="textAppearanceLabelMedium">@style/TextAppearance.ScrollGuard.Label</item>
+
+        <!-- FAB -->
+        <item name="extendedFloatingActionButtonStyle">@style/Widget.ScrollGuard.FAB</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         Block overlay — full screen, no action bar
+    ═══════════════════════════════════════════════════ -->
+    <style name="Theme.ScrollGuard.BlockOverlay" parent="Theme.ScrollGuard">
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowBackground">@color/bg_primary</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         Buttons
+    ═══════════════════════════════════════════════════ -->
+    <style name="Widget.ScrollGuard.Button.Primary" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/color_primary</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:letterSpacing">0.01</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.ScrollGuard.Button</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+    </style>
+
+    <style name="Widget.ScrollGuard.Button.Outline" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">@color/color_primary</item>
+        <item name="android:textColor">@color/color_primary</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.ScrollGuard.Button</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+    </style>
+
+    <style name="Widget.ScrollGuard.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         Shape appearances
+    ═══════════════════════════════════════════════════ -->
+    <style name="ShapeAppearance.ScrollGuard.Button" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="ShapeAppearance.ScrollGuard.Card" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerSize">@dimen/card_radius</item>
+    </style>
+
+    <style name="ShapeAppearance.ScrollGuard.Card.Small" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerSize">@dimen/card_radius_sm</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         Cards
+    ═══════════════════════════════════════════════════ -->
+    <style name="Widget.ScrollGuard.Card" parent="Widget.Material3.CardView.Outlined">
+        <item name="cardBackgroundColor">@color/bg_card</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.ScrollGuard.Card</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/border</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         Toolbar
+    ═══════════════════════════════════════════════════ -->
+    <style name="Widget.ScrollGuard.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@color/bg_primary</item>
+        <item name="titleTextColor">@color/text_primary</item>
+        <item name="titleTextAppearance">@style/TextAppearance.ScrollGuard.Title</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         FAB
+    ═══════════════════════════════════════════════════ -->
+    <style name="Widget.ScrollGuard.FAB" parent="Widget.Material3.ExtendedFloatingActionButton.Primary">
+        <item name="backgroundTint">@color/color_primary</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="iconTint">@color/text_primary</item>
+        <item name="elevation">6dp</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         Chips
+    ═══════════════════════════════════════════════════ -->
+    <style name="Widget.ScrollGuard.Chip" parent="Widget.Material3.Chip.Suggestion">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="chipBackgroundColor">@color/bg_card_elevated</item>
+        <item name="chipStrokeColor">@color/border</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipCornerRadius">@dimen/chip_radius</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="Widget.ScrollGuard.Chip.Selected" parent="Widget.Material3.Chip.Suggestion">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="chipBackgroundColor">@color/color_primary</item>
+        <item name="chipStrokeWidth">0dp</item>
+        <item name="chipCornerRadius">@dimen/chip_radius</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         Alert dialog
+    ═══════════════════════════════════════════════════ -->
+    <style name="AlertDialogDark" parent="ThemeOverlay.Material3.Dialog.Alert">
+        <item name="colorSurface">@color/bg_card</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.ScrollGuard.Button.Primary</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         Typography scale (M3 style names)
+    ═══════════════════════════════════════════════════ -->
+    <style name="TextAppearance.ScrollGuard.Display" parent="TextAppearance.Material3.DisplaySmall">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_display</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontWeight">700</item>
+    </style>
+
+    <style name="TextAppearance.ScrollGuard.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_headline</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontWeight">600</item>
+    </style>
+
+    <style name="TextAppearance.ScrollGuard.Title" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_title</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontWeight">600</item>
+    </style>
+
+    <style name="TextAppearance.ScrollGuard.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontWeight">400</item>
+    </style>
+
+    <style name="TextAppearance.ScrollGuard.Label" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textColor">@color/text_hint</item>
+        <item name="android:textSize">@dimen/text_label</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontWeight">400</item>
+    </style>
+
+    <style name="TextAppearance.ScrollGuard.Caption" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textColor">@color/text_hint</item>
+        <item name="android:textSize">@dimen/text_caption</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+</resources>

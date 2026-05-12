@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bounded ripple for tappable cards — purple ripple on card bg -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/purple_10">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/bg_card" />
+            <corners android:radius="@dimen/card_radius" />
+        </shape>
+    </item>
+</ripple>

@@ -1,0 +1,147 @@
+{
+  "info": {
+    "_postman_id": "8c459f0b-4655-4a6c-9418-5a415a9fcd0a",
+    "name": "Scroll Guard API",
+    "description": "Production API for Scroll Project Digital Wellbeing app.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test User\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/register",
+              "host": [ "{{base_url}}" ],
+              "path": [ "api", "register" ]
+            }
+          }
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": [ "{{base_url}}" ],
+              "path": [ "api", "login" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Monitored Apps",
+      "item": [
+        {
+          "name": "Get Apps",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/monitored-apps",
+              "host": [ "{{base_url}}" ],
+              "path": [ "api", "monitored-apps" ]
+            }
+          }
+        },
+        {
+          "name": "Add Monitored App",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"package_name\": \"com.twitter.android\",\n    \"app_name\": \"Twitter\",\n    \"daily_limit_minutes\": 30,\n    \"is_blocking_enabled\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/monitored-apps",
+              "host": [ "{{base_url}}" ],
+              "path": [ "api", "monitored-apps" ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Screen Time Usage",
+      "item": [
+        {
+          "name": "Sync Usage",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"usages\": [\n        {\n            \"package_name\": \"com.instagram.android\",\n            \"usage_date\": \"2026-05-09\",\n            \"time_spent_seconds\": 350\n        }\n    ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/usage/sync",
+              "host": [ "{{base_url}}" ],
+              "path": [ "api", "usage", "sync" ]
+            }
+          }
+        },
+        {
+          "name": "Today's Usage",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/usage/today",
+              "host": [ "{{base_url}}" ],
+              "path": [ "api", "usage", "today" ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": { "type": "text/javascript", "exec": [ "" ] }
+    },
+    {
+      "listen": "test",
+      "script": { "type": "text/javascript", "exec": [ "" ] }
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "token", "value": "YOUR_BEARER_TOKEN" }
+  ]
+}

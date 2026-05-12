@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Block overlay scrim — very dark radial gradient from center -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="100%p"
+        android:startColor="#1A0A1428"
+        android:endColor="#FF0D0D14" />
+</shape>

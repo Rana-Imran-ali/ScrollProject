@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Hero card background — deep purple gradient for dashboard main card.
+  Multi-stop: dark purple (bottom) → slightly lighter with hint of cyan (top-right).
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <gradient
+        android:type="linear"
+        android:angle="135"
+        android:startColor="#1A1728"
+        android:centerColor="#1E1A30"
+        android:endColor="#1C2230"
+        android:centerX="0.6" />
+
+    <corners android:radius="@dimen/card_radius" />
+    <stroke android:width="1dp" android:color="#2E2B48" />
+</shape>

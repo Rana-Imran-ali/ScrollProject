@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── 4dp base grid ─────────────────────────────── -->
+    <dimen name="space_2">2dp</dimen>
+    <dimen name="space_4">4dp</dimen>
+    <dimen name="space_8">8dp</dimen>
+    <dimen name="space_12">12dp</dimen>
+    <dimen name="space_16">16dp</dimen>
+    <dimen name="space_20">20dp</dimen>
+    <dimen name="space_24">24dp</dimen>
+    <dimen name="space_32">32dp</dimen>
+    <dimen name="space_40">40dp</dimen>
+    <dimen name="space_48">48dp</dimen>
+    <dimen name="space_64">64dp</dimen>
+
+    <!-- ── Screen ─────────────────────────────────────── -->
+    <dimen name="screen_padding_h">20dp</dimen>
+    <dimen name="screen_padding_v">24dp</dimen>
+
+    <!-- ── Cards ─────────────────────────────────────── -->
+    <dimen name="card_radius">20dp</dimen>
+    <dimen name="card_radius_sm">14dp</dimen>
+    <dimen name="card_padding">20dp</dimen>
+    <dimen name="card_padding_sm">16dp</dimen>
+
+    <!-- ── Touch targets ─────────────────────────────── -->
+    <dimen name="touch_target">48dp</dimen>
+    <dimen name="touch_target_sm">40dp</dimen>
+
+    <!-- ── Icons ─────────────────────────────────────── -->
+    <dimen name="icon_sm">20dp</dimen>
+    <dimen name="icon_md">28dp</dimen>
+    <dimen name="icon_lg">40dp</dimen>
+    <dimen name="icon_xl">80dp</dimen>
+
+    <!-- ── Typography scale ───────────────────────────── -->
+    <dimen name="text_display">36sp</dimen>
+    <dimen name="text_headline">24sp</dimen>
+    <dimen name="text_title">18sp</dimen>
+    <dimen name="text_body">15sp</dimen>
+    <dimen name="text_label">13sp</dimen>
+    <dimen name="text_caption">12sp</dimen>
+    <dimen name="text_micro">11sp</dimen>
+
+    <!-- ── Toolbar ────────────────────────────────────── -->
+    <dimen name="toolbar_height">56dp</dimen>
+
+    <!-- ── Progress bars ─────────────────────────────── -->
+    <dimen name="progress_height">6dp</dimen>
+    <dimen name="progress_height_thick">8dp</dimen>
+    <dimen name="progress_radius">3dp</dimen>
+
+    <!-- ── Chips ─────────────────────────────────────── -->
+    <dimen name="chip_height">40dp</dimen>
+    <dimen name="chip_radius">20dp</dimen>
+    <dimen name="chip_padding_h">16dp</dimen>
+
+    <!-- ── Accent bar (item card left strip) ─────────── -->
+    <dimen name="accent_bar_width">4dp</dimen>
+    <dimen name="accent_bar_radius">2dp</dimen>
+
+    <!-- ── FAB ───────────────────────────────────────── -->
+    <dimen name="fab_margin">20dp</dimen>
+</resources>

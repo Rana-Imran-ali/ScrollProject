@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ScrollProject</string>
+
+    <!-- Splash screen -->
+    <string name="splash_tagline">Take back your time</string>
+
+    <!-- Permissions screen -->
+    <string name="perm_title">Setup ScrollProject</string>
+    <string name="perm_subtitle">3 permissions needed to monitor and block apps</string>
+    <string name="perm_usage_title">Usage Access</string>
+    <string name="perm_usage_desc">Lets ScrollProject read how much time you spend in each app</string>
+    <string name="perm_overlay_title">Display Over Apps</string>
+    <string name="perm_overlay_desc">Required to show the blocking screen when your limit is reached</string>
+    <string name="perm_a11y_title">Accessibility Service</string>
+    <string name="perm_a11y_desc">Detects which app is in the foreground so we can block it instantly</string>
+    <string name="btn_grant">Grant Access</string>
+    <string name="btn_continue">Continue</string>
+
+    <!-- Main dashboard -->
+    <string name="dashboard_title">ScrollProject</string>
+    <string name="monitoring_label">Monitoring</string>
+    <string name="empty_state">No apps monitored yet.\nTap + to add apps.</string>
+    <string name="btn_add_app">Add App</string>
+
+    <!-- Focus mode -->
+    <string name="focus_mode_title">Focus Mode</string>
+    <string name="focus_mode_off">Off — tap to activate</string>
+    <string name="focus_mode_on">Active — all limits enforced</string>
+
+    <!-- Dashboard report shortcut -->
+    <string name="view_daily_report">View Today\'s Report</string>
+
+    <!-- App selection -->
+    <string name="app_selection_title">Select Apps to Monitor</string>
+    <string name="search_hint">Search apps…</string>
+    <string name="btn_confirm_selection">Confirm Selection</string>
+
+    <!-- Time limit -->
+    <string name="time_limit_title">Set Daily Limits</string>
+    <string name="hours_label">Hours</string>
+    <string name="minutes_label">Minutes</string>
+    <string name="btn_save_limit">Save Limit</string>
+
+    <!-- Block overlay -->
+    <string name="block_title">Time\'s Up!</string>
+    <string name="block_subtitle">You\'ve reached your daily limit</string>
+    <string name="btn_adjust_limit">Adjust My Limit</string>
+    <string name="btn_dismiss">OK, I\'ll wait</string>
+
+    <!-- Daily Report screen -->
+    <string name="report_title">Daily Report</string>
+    <string name="report_today_label">Today</string>
+    <string name="report_total_time">Total screen time</string>
+    <string name="report_blocks">Blocks triggered</string>
+    <string name="report_limits_hit">Limits hit</string>
+    <string name="report_time_saved">Time saved</string>
+    <string name="report_weekly_chart">Weekly Overview</string>
+    <string name="report_this_week">This week</string>
+    <string name="report_app_breakdown">App Breakdown</string>
+
+    <!-- Accessibility service -->
+    <string name="accessibility_service_label">ScrollProject Blocker</string>
+    <string name="accessibility_service_description">ScrollProject uses Accessibility Service to detect and block apps when you reach your screen time limit. No personal data is collected.</string>
+
+    <!-- Notifications -->
+    <string name="notif_tracking_title">ScrollProject Active</string>
+    <string name="notif_tracking_text">Monitoring your screen time…</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_app_icon">App icon</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_remove_app">Remove app</string>
+    <string name="cd_edit_limit">Edit limit</string>
+</resources>

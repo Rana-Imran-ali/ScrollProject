@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Brand ────────────────────────────────────────── -->
+    <color name="color_primary">#7C6FF7</color>
+    <color name="color_primary_dark">#5B54D6</color>
+    <color name="color_primary_light">#9D98F9</color>
+    <color name="color_primary_container">#211E4D</color>
+    <color name="color_on_primary_container">#C4BEFF</color>
+
+    <!-- ── Cyan accent ───────────────────────────────────── -->
+    <color name="color_cyan">#4ECDC4</color>
+    <color name="color_cyan_dark">#36B2A8</color>
+
+    <!-- ── Semantic ──────────────────────────────────────── -->
+    <color name="color_warning">#FFB347</color>
+    <color name="color_warning_container">#3D2800</color>
+    <color name="color_blocked">#FF5C5C</color>
+    <color name="color_blocked_container">#3D0A0A</color>
+    <color name="color_success">#4CAF82</color>
+    <color name="color_success_container">#0A2D1E</color>
+
+    <!-- ── Background layers ─────────────────────────────── -->
+    <color name="bg_primary">#0D0D14</color>
+    <color name="bg_surface">#15151F</color>
+    <color name="bg_card">#1C1C2A</color>
+    <color name="bg_card_elevated">#22223A</color>
+    <color name="bg_card_hero">#181826</color>
+
+    <!-- ── M3 surface roles ───────────────────────────────── -->
+    <color name="color_surface_variant">#27273A</color>
+    <color name="color_outline">#3F3F5A</color>
+    <color name="color_outline_variant">#2A2A40</color>
+
+    <!-- ── Text ──────────────────────────────────────────── -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9898B8</color>
+    <color name="text_hint">#5A5A7A</color>
+    <color name="text_on_primary">#FFFFFF</color>
+
+    <!-- ── Divider / border ───────────────────────────────── -->
+    <color name="divider">#2A2A3E</color>
+    <color name="border">#2F2F4A</color>
+
+    <!-- ── Overlay ───────────────────────────────────────── -->
+    <color name="scrim">#CC0D0D14</color>
+    <color name="white_10">#1AFFFFFF</color>
+    <color name="white_20">#33FFFFFF</color>
+    <color name="purple_10">#1A7C6FF7</color>
+    <color name="purple_20">#337C6FF7</color>
+    <color name="cyan_10">#1A4ECDC4</color>
+</resources>
