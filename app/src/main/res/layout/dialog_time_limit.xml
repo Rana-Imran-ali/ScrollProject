@@ -26,6 +26,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="@style/TextAppearance.ScrollGuard.Body"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switchInfinity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Unlimited (Infinity)"
             android:layout_marginBottom="16dp" />
 
         <LinearLayout

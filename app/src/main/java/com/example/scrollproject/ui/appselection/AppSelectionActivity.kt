@@ -35,6 +35,9 @@ import androidx.compose.runtime.collectAsState
 import com.example.scrollproject.domain.model.AppInfo
 import com.example.scrollproject.ui.viewmodel.DashboardViewModel
 
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
 class AppSelectionActivity : ComponentActivity() {
 
     private val viewModel: DashboardViewModel by viewModels()
@@ -162,6 +165,21 @@ fun AppListItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var iconBitmap by remember(app.packageName) { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    LaunchedEffect(app.packageName) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val pm = context.packageManager
+                val drawable = pm.getApplicationIcon(app.packageName)
+                iconBitmap = drawable.toBitmap()
+            } catch (e: Exception) {
+                // Ignore loading error
+            }
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -170,10 +188,9 @@ fun AppListItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val bitmap = remember(app.icon) { app.icon?.toBitmap() }
-        if (bitmap != null) {
+        if (iconBitmap != null) {
             Image(
-                bitmap = bitmap.asImageBitmap(),
+                bitmap = iconBitmap!!.asImageBitmap(),
                 contentDescription = app.appName,
                 modifier = Modifier
                     .size(48.dp)

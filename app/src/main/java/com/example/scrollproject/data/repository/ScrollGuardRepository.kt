@@ -17,7 +17,14 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ScrollGuardRepository(private val context: Context) {
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class ScrollGuardRepository @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     private val db = ScrollGuardDatabase.getInstance(context)
     private val monitoredAppDao = db.monitoredAppDao()
@@ -52,6 +59,11 @@ class ScrollGuardRepository(private val context: Context) {
 
     suspend fun getBlockedApps(): List<MonitoredAppEntity> = withContext(Dispatchers.IO) {
         monitoredAppDao.getBlockedApps()
+    }
+
+    /** Returns the package names of every monitored app, regardless of blocking state. */
+    suspend fun getAllMonitoredPackages(): List<String> = withContext(Dispatchers.IO) {
+        monitoredAppDao.getAllPackageNames()
     }
 
     suspend fun getMonitoredApp(pkg: String): MonitoredAppEntity? = withContext(Dispatchers.IO) {
@@ -97,6 +109,10 @@ class ScrollGuardRepository(private val context: Context) {
 
     fun getActiveSession(): Flow<FocusSessionEntity?> = focusSessionDao.getActiveSession()
 
+    suspend fun getActiveSessionOnce(): FocusSessionEntity? = withContext(Dispatchers.IO) {
+        focusSessionDao.getActiveSessionOnce()
+    }
+
     suspend fun startFocusSession(): Long = withContext(Dispatchers.IO) {
         focusSessionDao.insert(FocusSessionEntity())
     }
@@ -127,8 +143,7 @@ class ScrollGuardRepository(private val context: Context) {
             .map {
                 AppInfo(
                     packageName = it.activityInfo.packageName,
-                    appName = it.loadLabel(pm).toString(),
-                    icon = it.loadIcon(pm)
+                    appName = it.loadLabel(pm).toString()
                 )
             }
             .sortedBy { it.appName }

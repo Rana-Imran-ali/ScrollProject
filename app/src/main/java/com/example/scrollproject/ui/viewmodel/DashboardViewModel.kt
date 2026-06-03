@@ -1,7 +1,6 @@
 package com.example.scrollproject.ui.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.scrollproject.data.local.AppUsageEntity
 import com.example.scrollproject.data.repository.ScrollGuardRepository
@@ -11,10 +10,13 @@ import com.example.scrollproject.domain.model.MonitoredApp
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import com.example.scrollproject.core.TimerManager
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class DashboardViewModel(application: Application) : AndroidViewModel(application) {
-
-    val repository = ScrollGuardRepository(application)
+@HiltViewModel
+class DashboardViewModel @Inject constructor(
+    val repository: ScrollGuardRepository
+) : ViewModel() {
 
     // ─── Dashboard State ─────────────────────────────────────────────────────
 
@@ -152,7 +154,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                         appName = info.appName,
                         dailyLimitMinutes = 60,
                         isBlockingEnabled = true,
-                        icon = info.icon
+                        icon = null
                     )
                 )
             }

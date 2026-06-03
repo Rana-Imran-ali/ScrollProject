@@ -35,6 +35,13 @@ fun DashboardScreen(
     onEditLimit: (com.example.scrollproject.domain.model.MonitoredApp) -> Unit
 ) {
     val state by viewModel.dashboardState.collectAsState()
+    var selectedPackageName by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(state.monitoredApps) {
+        if (selectedPackageName == null || state.monitoredApps.none { it.packageName == selectedPackageName }) {
+            selectedPackageName = state.monitoredApps.firstOrNull()?.packageName
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -64,6 +71,39 @@ fun DashboardScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
+            val selectedApp = state.monitoredApps.find { it.packageName == selectedPackageName }
+            val isInfinite = selectedApp?.dailyLimitMinutes == Int.MAX_VALUE
+            
+            val usedSeconds = selectedApp?.let { state.usageMap[it.packageName] ?: 0L } ?: 0L
+            val limitSeconds = selectedApp?.let { 
+                if (isInfinite) Long.MAX_VALUE else it.dailyLimitMinutes * 60L 
+            } ?: 0L
+            
+            val remainingSeconds = if (selectedApp == null) {
+                0L
+            } else if (isInfinite) {
+                Long.MAX_VALUE
+            } else {
+                (limitSeconds - usedSeconds).coerceAtLeast(0L)
+            }
+            
+            val progressRaw = if (selectedApp == null) {
+                0f
+            } else if (isInfinite) {
+                1f
+            } else if (limitSeconds > 0) {
+                remainingSeconds.toFloat() / limitSeconds.toFloat()
+            } else {
+                0f
+            }
+            
+            val clampedProgress = progressRaw.coerceIn(0f, 1f)
+            val animatedProgress by animateFloatAsState(
+                targetValue = clampedProgress,
+                animationSpec = tween(durationMillis = 500, easing = LinearOutSlowInEasing),
+                label = "progress"
+            )
+
             // Circular Progress Card
             Card(
                 shape = RoundedCornerShape(24.dp),
@@ -78,23 +118,6 @@ fun DashboardScreen(
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    val totalUsedSeconds = state.totalSecondsToday
-                    val totalLimitMinutes = state.monitoredApps.sumOf { it.dailyLimitMinutes }
-                    val totalLimitSeconds = totalLimitMinutes * 60L
-                    
-                    // Progress for "Remaining Time" (starts at 1.0, goes to 0.0)
-                    val progressRaw = if (totalLimitSeconds > 0) {
-                        val remaining = (totalLimitSeconds - totalUsedSeconds).coerceAtLeast(0L)
-                        remaining.toFloat() / totalLimitSeconds.toFloat()
-                    } else 0f
-                    
-                    val clampedProgress = progressRaw.coerceIn(0f, 1f)
-                    val animatedProgress by animateFloatAsState(
-                        targetValue = clampedProgress,
-                        animationSpec = tween(durationMillis = 500, easing = LinearOutSlowInEasing),
-                        label = "progress"
-                    )
-
                     // Inner Glow/Shadow effect using Box
                     Box(
                         modifier = Modifier
@@ -106,37 +129,38 @@ fun DashboardScreen(
                         CircularProgressIndicator(
                             progress = { animatedProgress },
                             modifier = Modifier.size(180.dp),
-                            color = if (clampedProgress < 0.1f) Color(0xFFFF5252) else Color(0xFF00E5FF),
+                            color = if (clampedProgress < 0.1f && !isInfinite) Color(0xFFFF5252) else Color(0xFF00E5FF),
                             strokeWidth = 14.dp,
                             trackColor = Color.White.copy(alpha = 0.05f),
                             strokeCap = StrokeCap.Round
                         )
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            val remainingSeconds = (totalLimitSeconds - totalUsedSeconds).coerceAtLeast(0L)
-                            val remHours = remainingSeconds / 3600
-                            val remMins = (remainingSeconds % 3600) / 60
-                            val remSecs = remainingSeconds % 60
-                            
-                            val timeText = if (remHours > 0) {
-                                String.format("%02d:%02d:%02d", remHours, remMins, remSecs)
+                            val timeText = if (selectedApp == null) {
+                                "00:00"
+                            } else if (isInfinite) {
+                                "Unlimited"
                             } else {
-                                String.format("%02d:%02d", remMins, remSecs)
+                                val remHours = remainingSeconds / 3600
+                                val remMins = (remainingSeconds % 3600) / 60
+                                val remSecs = remainingSeconds % 60
+                                String.format("%02d:%02d:%02d", remHours, remMins, remSecs)
                             }
 
                             Text(
                                 text = timeText,
                                 color = Color.White,
-                                fontSize = 36.sp,
+                                fontSize = if (isInfinite) 26.sp else 36.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 1.sp
                             )
                             Text(
-                                text = "REMAINING",
+                                text = if (selectedApp == null) "NO APP SELECTED" else selectedApp.appName.uppercase(),
                                 color = Color(0xFF00E5FF),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                letterSpacing = 2.sp
+                                letterSpacing = 2.sp,
+                                modifier = Modifier.padding(top = 4.dp)
                             )
                         }
                     }
@@ -151,14 +175,10 @@ fun DashboardScreen(
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    val totalUsedSeconds = state.totalSecondsToday
-                    val totalLimitMinutes = state.monitoredApps.sumOf { it.dailyLimitMinutes }
-                    val totalLimitSeconds = totalLimitMinutes * 60L
-                    
                     StatItem(
                         label = "TIME USED", 
-                        value = formatDashboardTime(totalUsedSeconds),
-                        iconId = R.drawable.ic_shield // Replace with appropriate icon if available
+                        value = formatDashboardTime(usedSeconds),
+                        iconId = R.drawable.ic_shield
                     )
                     
                     Divider(
@@ -169,8 +189,8 @@ fun DashboardScreen(
                     )
                     
                     StatItem(
-                        label = "TOTAL BUDGET", 
-                        value = "${totalLimitMinutes}m",
+                        label = "DAILY BUDGET", 
+                        value = if (selectedApp == null) "0m" else if (isInfinite) "Unlimited" else "${selectedApp.dailyLimitMinutes}m",
                         iconId = R.drawable.ic_shield
                     )
                 }
@@ -245,6 +265,8 @@ fun DashboardScreen(
             MonitoredAppsList(
                 apps = state.monitoredApps,
                 usageMap = state.usageMap,
+                selectedPackageName = selectedPackageName,
+                onSelectApp = { selectedPackageName = it },
                 onToggleBlock = { pkg, enabled -> viewModel.toggleBlocking(pkg, enabled) },
                 onEditLimit = onEditLimit,
                 onRemove = { pkg -> viewModel.removeApp(pkg) }

@@ -2,6 +2,8 @@ package com.example.scrollproject.ui.compose
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,6 +30,8 @@ import com.example.scrollproject.ui.appselection.toBitmap
 fun MonitoredAppsList(
     apps: List<MonitoredApp>,
     usageMap: Map<String, Long>,
+    selectedPackageName: String?,
+    onSelectApp: (String) -> Unit,
     onToggleBlock: (String, Boolean) -> Unit,
     onEditLimit: (MonitoredApp) -> Unit,
     onRemove: (String) -> Unit
@@ -40,11 +44,14 @@ fun MonitoredAppsList(
         Column(modifier = Modifier.fillMaxWidth()) {
             apps.forEach { app ->
                 val usedSeconds = usageMap[app.packageName] ?: 0L
-                val remainingSeconds = (app.dailyLimitMinutes * 60L) - usedSeconds
+                val isInfinite = app.dailyLimitMinutes == Int.MAX_VALUE
+                val remainingSeconds = if (isInfinite) Long.MAX_VALUE else (app.dailyLimitMinutes * 60L) - usedSeconds
                 
                 MonitoredAppItem(
                     app = app,
                     remainingSeconds = remainingSeconds,
+                    isSelected = app.packageName == selectedPackageName,
+                    onSelect = { onSelectApp(app.packageName) },
                     onToggleBlock = { onToggleBlock(app.packageName, it) },
                     onEditLimit = { onEditLimit(app) },
                     onRemove = { onRemove(app.packageName) }
@@ -59,18 +66,24 @@ fun MonitoredAppsList(
 fun MonitoredAppItem(
     app: MonitoredApp,
     remainingSeconds: Long,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
     onToggleBlock: (Boolean) -> Unit,
     onEditLimit: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val isBlocked = remainingSeconds <= 0 && app.isBlockingEnabled
+    val isInfinite = app.dailyLimitMinutes == Int.MAX_VALUE
+    val isBlocked = !isInfinite && remainingSeconds <= 0 && app.isBlockingEnabled
     val cardColor = if (isBlocked) Color(0xFF3B1E1E) else Color(0xFF1E1E24)
-    val timerColor = if (isBlocked) Color(0xFFFF5252) else if (remainingSeconds < 300) Color(0xFFFFAB40) else Color(0xFF00E5FF)
+    val timerColor = if (isBlocked) Color(0xFFFF5252) else if (!isInfinite && remainingSeconds < 300) Color(0xFFFFAB40) else Color(0xFF00E5FF)
     
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor),
-        modifier = Modifier.fillMaxWidth(),
+        border = if (isSelected) BorderStroke(2.dp, Color(0xFF00E5FF)) else null,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -78,7 +91,7 @@ fun MonitoredAppItem(
                 val bitmap = remember(app.icon) { app.icon?.toBitmap() }
                 Box(contentAlignment = Alignment.Center) {
                     // Small circular progress around the icon
-                    val progress = 1f - (remainingSeconds.toFloat() / (app.dailyLimitMinutes * 60f)).coerceIn(0f, 1f)
+                    val progress = if (isInfinite) 0f else 1f - (remainingSeconds.toFloat() / (app.dailyLimitMinutes * 60f)).coerceIn(0f, 1f)
                     CircularProgressIndicator(
                         progress = { progress },
                         modifier = Modifier.size(56.dp),
@@ -109,7 +122,7 @@ fun MonitoredAppItem(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "DAILY LIMIT: ${app.dailyLimitMinutes}M", 
+                        text = if (isInfinite) "DAILY LIMIT: UNLIMITED" else "DAILY LIMIT: ${app.dailyLimitMinutes}M", 
                         color = Color.Gray, 
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -148,7 +161,7 @@ fun MonitoredAppItem(
                         letterSpacing = 1.sp
                     )
                     Text(
-                        text = formatTime(Math.max(0, remainingSeconds)),
+                        text = if (isInfinite) "Unlimited" else formatTime(Math.max(0, remainingSeconds)),
                         color = timerColor,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold

@@ -12,8 +12,7 @@ data class MonitoredApp(
 
 data class AppInfo(
     val packageName: String,
-    val appName: String,
-    val icon: Drawable? = null
+    val appName: String
 )
 
 data class UsageSummary(

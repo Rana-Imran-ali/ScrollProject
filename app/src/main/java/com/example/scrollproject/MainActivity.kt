@@ -22,6 +22,9 @@ import com.example.scrollproject.ui.dialog.TimeLimitDialog
 import com.example.scrollproject.ui.viewmodel.DashboardViewModel
 import kotlinx.coroutines.launch
 
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     private val viewModel: DashboardViewModel by viewModels()
@@ -73,17 +76,74 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestPermissionsIfNeeded() {
         if (!hasUsageStatsPermission()) {
-            Toast.makeText(this, "Usage access required for screen time tracking", Toast.LENGTH_LONG).show()
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Usage Access Required")
+                .setMessage("Scroll Guard needs Usage Access to track your screen time. Please enable it in the next screen.")
+                .setPositiveButton("Enable") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                }
+                .setCancelable(false)
+                .show()
+            return
         }
+
         if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Overlay permission required for blocking screen", Toast.LENGTH_LONG).show()
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Overlay Permission Required")
+                .setMessage("To block apps when your time limit is reached, Scroll Guard needs permission to display over other apps.")
+                .setPositiveButton("Enable") { _, _ ->
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                }
+                .setCancelable(false)
+                .show()
+            return
         }
+
+        if (!isAccessibilityServiceEnabled()) {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Accessibility Service Required")
+                .setMessage("To detect when you open restricted apps instantly, please enable the Scroll Guard Accessibility Service.")
+                .setPositiveButton("Enable") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+                .setCancelable(false)
+                .show()
+            return
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
             }
         }
         requestIgnoreBatteryOptimizations()
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        var accessibilityEnabled = 0
+        try {
+            accessibilityEnabled = Settings.Secure.getInt(
+                contentResolver,
+                Settings.Secure.ACCESSIBILITY_ENABLED
+            )
+        } catch (e: Settings.SettingNotFoundException) {
+            // Ignore
+        }
+        if (accessibilityEnabled == 1) {
+            val settingValue = Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            if (settingValue != null) {
+                val service = android.content.ComponentName(packageName, com.example.scrollproject.services.ScrollGuardAccessibilityService::class.java.name).flattenToString()
+                return settingValue.contains(service)
+            }
+        }
+        return false
     }
 
     private fun requestIgnoreBatteryOptimizations() {

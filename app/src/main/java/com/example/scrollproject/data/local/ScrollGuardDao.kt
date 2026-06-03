@@ -11,6 +11,9 @@ interface MonitoredAppDao {
     @Query("SELECT * FROM monitored_apps WHERE isBlockingEnabled = 1")
     fun getBlockedApps(): List<MonitoredAppEntity>
 
+    @Query("SELECT packageName FROM monitored_apps")
+    fun getAllPackageNames(): List<String>
+
     @Query("SELECT * FROM monitored_apps WHERE packageName = :pkg LIMIT 1")
     fun getApp(pkg: String): MonitoredAppEntity?
 
