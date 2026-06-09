@@ -224,6 +224,9 @@ class DashboardViewModel @Inject constructor(
             if (TimerManager.isRunning.value && TimerManager.monitoredPackage.value == packageName) {
                 stopCountdown(context)
             }
+            // Lift any post-expiry block the Accessibility Service is holding for
+            // this app. The ?.invoke() is a safe no-op if the service is not connected.
+            ScrollGuardAccessibilityService.clearBlock?.invoke()
             repository.removeMonitoredApp(packageName)
             _state.update { s ->
                 val remaining = s.monitoredApps.filter { it.packageName != packageName }

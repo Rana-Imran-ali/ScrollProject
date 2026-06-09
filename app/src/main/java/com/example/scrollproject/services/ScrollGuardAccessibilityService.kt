@@ -32,6 +32,17 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
         /** True while this service instance is bound to the system. */
         @Volatile var isConnected: Boolean = false
             private set
+
+        /**
+         * When invoked, clears the post-expiry block held by the live service
+         * instance (nulls expiredPackage / expiredAppName) so the service stops
+         * intercepting the app that was just removed from the monitored list.
+         *
+         * Set by the live instance in [onServiceConnected]; cleared in [onDestroy].
+         * Safe to call as a no-op when the service is not connected (nullable invoke).
+         */
+        @Volatile var clearBlock: (() -> Unit)? = null
+            private set
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -63,6 +74,13 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
             expiredPackage = pkg
             expiredAppName = name
             mainHandler.post { enforceExpiry() }
+        }
+
+        // Expose a hook so DashboardViewModel.removeApp() can instantly lift the
+        // post-expiry block without restarting the phone or the service.
+        clearBlock = {
+            expiredPackage = null
+            expiredAppName = null
         }
     }
 
@@ -124,6 +142,7 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
         isConnected    = false
         expiredPackage = null
         expiredAppName = null
+        clearBlock             = null
         TimerManager.onTimerExpired = null
         TimerManager.setActiveForegroundPackage(null)
     }
