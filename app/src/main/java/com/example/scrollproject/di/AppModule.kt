@@ -15,27 +15,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): ScrollGuardDatabase {
-        return ScrollGuardDatabase.getInstance(context)
-    }
+    fun provideDatabase(@ApplicationContext context: Context): ScrollGuardDatabase =
+        ScrollGuardDatabase.getInstance(context)
 
     @Provides
-    fun provideMonitoredAppDao(db: ScrollGuardDatabase): MonitoredAppDao {
-        return db.monitoredAppDao()
-    }
+    fun provideMonitoredAppDao(db: ScrollGuardDatabase): MonitoredAppDao =
+        db.monitoredAppDao()
 
-    @Provides
-    fun provideAppUsageDao(db: ScrollGuardDatabase): AppUsageDao {
-        return db.appUsageDao()
-    }
-
-    @Provides
-    fun provideFocusSessionDao(db: ScrollGuardDatabase): FocusSessionDao {
-        return db.focusSessionDao()
-    }
-
-    @Provides
-    fun provideBlockEventDao(db: ScrollGuardDatabase): BlockEventDao {
-        return db.blockEventDao()
-    }
+    // AppUsageDao, FocusSessionDao, BlockEventDao are no longer injected —
+    // the simplified Repository only uses MonitoredAppDao.
 }

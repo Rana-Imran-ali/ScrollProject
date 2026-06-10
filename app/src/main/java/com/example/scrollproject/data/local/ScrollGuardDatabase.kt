@@ -7,19 +7,13 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [
-        MonitoredAppEntity::class,
-        AppUsageEntity::class,
-        FocusSessionEntity::class,
-        BlockEventEntity::class
+        MonitoredAppEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ScrollGuardDatabase : RoomDatabase() {
     abstract fun monitoredAppDao(): MonitoredAppDao
-    abstract fun appUsageDao(): AppUsageDao
-    abstract fun focusSessionDao(): FocusSessionDao
-    abstract fun blockEventDao(): BlockEventDao
 
     companion object {
         @Volatile private var INSTANCE: ScrollGuardDatabase? = null
@@ -30,7 +24,10 @@ abstract class ScrollGuardDatabase : RoomDatabase() {
                     context.applicationContext,
                     ScrollGuardDatabase::class.java,
                     "scroll_guard.db"
-                ).build().also { INSTANCE = it }
+                )
+                .fallbackToDestructiveMigration()
+                .build()
+                .also { INSTANCE = it }
             }
     }
 }

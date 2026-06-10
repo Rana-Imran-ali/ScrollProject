@@ -1,192 +1,77 @@
 package com.example.scrollproject.data.repository
 
-import android.app.AppOpsManager
-import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
-import android.os.Build
 import com.example.scrollproject.data.local.*
 import com.example.scrollproject.domain.model.AppInfo
 import com.example.scrollproject.domain.model.MonitoredApp
-import com.example.scrollproject.domain.model.UsageSummary
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.*
-
-import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * ScrollGuardRepository — simplified data layer.
+ *
+ * Only surfaces what the countdown-timer feature needs:
+ *  • List of monitored apps (persisted in Room so the selection survives restarts).
+ *  • Installed-apps query for the app-picker screen.
+ *
+ * Legacy tables (app_usages, focus_sessions, block_events) have been fully
+ * removed from the schema in Phase 4. Only MonitoredAppEntity remains.
+ */
 @Singleton
 class ScrollGuardRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val monitoredDao: MonitoredAppDao
 ) {
-
-    private val db = ScrollGuardDatabase.getInstance(context)
-    private val monitoredAppDao = db.monitoredAppDao()
-    private val appUsageDao = db.appUsageDao()
-    private val focusSessionDao = db.focusSessionDao()
-    private val blockEventDao = db.blockEventDao()
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
     // ─── Monitored Apps ───────────────────────────────────────────────────────
 
+    /** Live list for the dashboard. Emits whenever the table changes. */
     fun getMonitoredApps(): Flow<List<MonitoredApp>> =
-        monitoredAppDao.getAllApps().map { list ->
-            list.map { it.toDomain(context) }
-        }
+        monitoredDao.getAllApps().map { list -> list.map { it.toDomain(context) } }
 
+    /** Upsert a monitored app (called when user selects from picker). */
     suspend fun addMonitoredApp(app: MonitoredApp) = withContext(Dispatchers.IO) {
-        monitoredAppDao.insert(app.toEntity())
+        monitoredDao.insert(app.toEntity())
     }
 
+    /** Remove a monitored app by package name. */
     suspend fun removeMonitoredApp(packageName: String) = withContext(Dispatchers.IO) {
-        monitoredAppDao.deleteByPackage(packageName)
+        monitoredDao.deleteByPackage(packageName)
     }
 
-    suspend fun setBlocking(packageName: String, enabled: Boolean) = withContext(Dispatchers.IO) {
-        monitoredAppDao.setBlocking(packageName, enabled)
-    }
+    // ─── Installed Apps ───────────────────────────────────────────────────────
 
-    suspend fun updateLimit(packageName: String, minutes: Int) = withContext(Dispatchers.IO) {
-        monitoredAppDao.updateLimit(packageName, minutes)
-    }
-
-
-    suspend fun getBlockedApps(): List<MonitoredAppEntity> = withContext(Dispatchers.IO) {
-        monitoredAppDao.getBlockedApps()
-    }
-
-    /** Returns the package names of every monitored app, regardless of blocking state. */
-    suspend fun getAllMonitoredPackages(): List<String> = withContext(Dispatchers.IO) {
-        monitoredAppDao.getAllPackageNames()
-    }
-
-    suspend fun getMonitoredApp(pkg: String): MonitoredAppEntity? = withContext(Dispatchers.IO) {
-        monitoredAppDao.getApp(pkg)
-    }
-
-    // ─── Usage Tracking ──────────────────────────────────────────────────────
-
-    fun getTodayUsage(): Flow<List<AppUsageEntity>> =
-        appUsageDao.getUsageForDate(today())
-
-    suspend fun getTodayUsageOnce(): List<AppUsageEntity> = withContext(Dispatchers.IO) {
-        appUsageDao.getUsageForDateOnce(today())
-    }
-
-    fun getTodayTotalSeconds(): Flow<Long?> =
-        appUsageDao.getTotalSecondsForDate(today())
-
-    suspend fun addUsageTime(packageName: String, deltaSeconds: Long) = withContext(Dispatchers.IO) {
-        val existing = appUsageDao.getUsage(packageName, today())
-        if (existing == null) {
-            appUsageDao.insert(AppUsageEntity(packageName = packageName, date = today(), timeSpentSeconds = deltaSeconds))
-        } else {
-            appUsageDao.addTime(packageName, today(), deltaSeconds, System.currentTimeMillis())
-        }
-    }
-
-    suspend fun getUsedSecondsToday(packageName: String): Long = withContext(Dispatchers.IO) {
-        appUsageDao.getUsage(packageName, today())?.timeSpentSeconds ?: 0L
-    }
-
-    suspend fun getWeeklyUsage(): List<UsageSummary> = withContext(Dispatchers.IO) {
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.DAY_OF_YEAR, -6)
-        val startDate = dateFormat.format(cal.time)
-        val usages = appUsageDao.getUsageSince(startDate)
-        usages.groupBy { it.date }
-            .map { (date, list) -> UsageSummary(date, list.sumOf { it.timeSpentSeconds }) }
-            .sortedBy { it.date }
-    }
-
-    // ─── Focus Sessions ──────────────────────────────────────────────────────
-
-    fun getActiveSession(): Flow<FocusSessionEntity?> = focusSessionDao.getActiveSession()
-
-    suspend fun getActiveSessionOnce(): FocusSessionEntity? = withContext(Dispatchers.IO) {
-        focusSessionDao.getActiveSessionOnce()
-    }
-
-    suspend fun startFocusSession(): Long = withContext(Dispatchers.IO) {
-        focusSessionDao.insert(FocusSessionEntity())
-    }
-
-    suspend fun stopFocusSession(status: String = "completed") = withContext(Dispatchers.IO) {
-        val session = focusSessionDao.getActiveSessionOnce()
-        session?.let { focusSessionDao.updateStatus(it.id, status, System.currentTimeMillis()) }
-    }
-
-    // ─── Block Events ────────────────────────────────────────────────────────
-
-    suspend fun logBlockEvent(packageName: String, reason: String = "limit_reached") = withContext(Dispatchers.IO) {
-        blockEventDao.insert(BlockEventEntity(packageName = packageName, reason = reason))
-    }
-
-    fun getTodayBlockCount(): Flow<Int> = blockEventDao.getBlockCountForDate(today())
-
-    // ─── Installed Apps ──────────────────────────────────────────────────────
-
+    /** Returns all user-installed, launchable apps sorted by name. */
     suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
-        val pm = context.packageManager
-        val intent = android.content.Intent(android.content.Intent.ACTION_MAIN, null)
-        intent.addCategory(android.content.Intent.CATEGORY_LAUNCHER)
-        val resolvedApps = pm.queryIntentActivities(intent, 0)
-        resolvedApps
+        val pm     = context.packageManager
+        val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+            addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+        }
+        pm.queryIntentActivities(intent, 0)
             .filter { it.activityInfo.packageName != context.packageName }
             .filter { (it.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0 }
-            .map {
-                AppInfo(
-                    packageName = it.activityInfo.packageName,
-                    appName = it.loadLabel(pm).toString()
-                )
-            }
+            .map { AppInfo(it.activityInfo.packageName, it.loadLabel(pm).toString()) }
             .sortedBy { it.appName }
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-
-    fun today(): String = dateFormat.format(Date())
-
-    fun hasUsageStatsPermission(): Boolean {
-        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            appOps.unsafeCheckOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
-                context.packageName
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            appOps.checkOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
-                context.packageName
-            )
-        }
-        return mode == AppOpsManager.MODE_ALLOWED
-    }
-
-    // ─── Mappers ─────────────────────────────────────────────────────────────
+    // ─── Mappers ──────────────────────────────────────────────────────────────
 
     private fun MonitoredAppEntity.toDomain(ctx: Context): MonitoredApp {
-        val pm = ctx.packageManager
-        val icon = try { pm.getApplicationIcon(packageName) } catch (e: Exception) { null }
-        return MonitoredApp(
-            packageName, appName, dailyLimitMinutes, 
-            isBlockingEnabled, icon
-        )
+        val icon = try { ctx.packageManager.getApplicationIcon(packageName) } catch (_: Exception) { null }
+        return MonitoredApp(packageName = packageName, appName = appName, icon = icon)
     }
 
+    /** Maps the simplified domain model back to the full entity (unused columns get sensible defaults). */
     private fun MonitoredApp.toEntity() = MonitoredAppEntity(
-        packageName = packageName,
-        appName = appName,
-        dailyLimitMinutes = dailyLimitMinutes,
-        isBlockingEnabled = isBlockingEnabled
+        packageName       = packageName,
+        appName           = appName,
+        dailyLimitMinutes = Int.MAX_VALUE,   // unused — no daily limit concept anymore
+        isBlockingEnabled = false            // unused — enforcement handled by TimerManager
     )
 }

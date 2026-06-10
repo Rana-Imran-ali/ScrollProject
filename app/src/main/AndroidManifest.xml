@@ -4,30 +4,23 @@
 
     <!-- ═══ PERMISSIONS ═══════════════════════════════════════════════ -->
 
-    <!-- Screen time / usage stats -->
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-
-    <!-- Draw overlay (blocking screen) -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
-    <!-- Foreground service -->
+    <!-- Foreground countdown service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
-    <!-- Restart on boot -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
-    <!-- Keep service alive -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Keep service alive through battery optimisation whitelist -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-    <!-- Query installed apps (Android 11+) -->
+    <!-- Post notifications (Android 13+) — required for the foreground notification -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Query installed launchable apps (Android 11+) -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
-    <!-- Post notifications (Android 13+) -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Usage stats permission -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- ═══ QUERIES (Android 11+) ═════════════════════════════════════ -->
     <queries>
@@ -59,28 +52,17 @@
             </intent-filter>
         </activity>
 
-        <!-- ─── Block Overlay Activity ────────────────────────────── -->
-        <activity
-            android:name=".ui.blockscreen.BlockActivity"
-            android:exported="false"
-            android:launchMode="singleTask"
-            android:theme="@style/Theme.ScrollGuard.BlockOverlay"
-            android:showOnLockScreen="true"
-            android:turnScreenOn="true"
-            android:excludeFromRecents="true" />
 
-        <!-- ─── App Selection Compose Activity ────────────────────── -->
-        <activity
-            android:name=".ui.appselection.AppSelectionActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ScrollGuard" />
-
-        <!-- ─── Foreground Monitoring Service ─────────────────────── -->
+        <!-- ─── Countdown Foreground Service ─────────────────────── -->
         <service
-            android:name=".services.UsageMonitorService"
+            android:name=".services.CountdownService"
             android:exported="false"
-            android:foregroundServiceType="dataSync"
-            android:stopWithTask="false" />
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="countdown_timer" />
+        </service>
 
         <!-- ─── Accessibility Service ──────────────────────────────── -->
         <service
@@ -96,13 +78,12 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- ─── Boot Receiver ─────────────────────────────────────── -->
+        <!-- ─── Boot Receiver (no-op, kept for manifest completeness) -->
         <receiver
             android:name=".receiver.BootReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
 

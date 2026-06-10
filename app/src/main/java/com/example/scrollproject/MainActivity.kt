@@ -1,28 +1,38 @@
 package com.example.scrollproject
 
 import android.app.AppOpsManager
-import android.content.Intent
-import android.content.pm.PackageManager
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
+import android.os.Process
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.lifecycleScope
-import com.example.scrollproject.services.MonitoringWorker
-import com.example.scrollproject.services.UsageMonitorService
-import com.example.scrollproject.ui.appselection.AppSelectionActivity
+import com.example.scrollproject.ui.appselection.AppSelectionScreen
 import com.example.scrollproject.ui.compose.DashboardScreen
-import com.example.scrollproject.ui.dialog.TimeLimitDialog
+import com.example.scrollproject.ui.compose.PermissionSetupScreen
 import com.example.scrollproject.ui.viewmodel.DashboardViewModel
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
-import dagger.hilt.android.AndroidEntryPoint
+enum class Screen {
+    PermissionSetup,
+    Dashboard,
+    AppSelection
+}
+
+private val BgDark        = Color(0xFF0D0D14)
+private val Surface2      = Color(0xFF1E1E2E)
+private val Cyan          = Color(0xFF00E5FF)
+private val TextPrimary   = Color(0xFFF0F0FF)
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -31,160 +41,143 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         setContent {
-            DashboardScreen(
-                viewModel = viewModel,
-                onAddApp = {
-                    if (!hasUsageStatsPermission()) {
-                        requestUsageStatsPermission()
-                    } else {
-                        startActivity(Intent(this, AppSelectionActivity::class.java))
-                    }
-                },
-                onEditLimit = { app ->
-                    TimeLimitDialog(this, app) { minutes ->
-                        viewModel.updateLimit(app.packageName, minutes)
-                    }.show()
+            MaterialTheme(
+                colorScheme = darkColorScheme(
+                    background = BgDark,
+                    surface    = Surface2,
+                    primary    = Cyan,
+                    onPrimary  = Color.Black,
+                    onSurface  = TextPrimary
+                )
+            ) {
+                val hasAllPermissions = isAccessibilityServiceEnabled() && isUsageStatsPermissionGranted()
+                Log.d("ScrollGuard", "MainActivity content composition: hasAllPermissions=$hasAllPermissions")
+                var currentScreen by remember {
+                    mutableStateOf(
+                        if (hasAllPermissions) Screen.Dashboard else Screen.PermissionSetup
+                    )
                 }
-            )
+
+                // Check again if permissions get enabled outside the app and user returns
+                LaunchedEffect(currentScreen) {
+                    Log.d("ScrollGuard", "MainActivity LaunchedEffect checking currentScreen=$currentScreen")
+                    if (currentScreen == Screen.PermissionSetup &&
+                        isAccessibilityServiceEnabled() &&
+                        isUsageStatsPermissionGranted()
+                    ) {
+                        Log.d("ScrollGuard", "Permissions detected as granted. Transitioning to Screen.Dashboard")
+                        currentScreen = Screen.Dashboard
+                    }
+                }
+
+                when (currentScreen) {
+                    Screen.PermissionSetup -> {
+                        PermissionSetupScreen(
+                            onPermissionsGranted = {
+                                currentScreen = Screen.Dashboard
+                            }
+                        )
+                    }
+                    Screen.Dashboard -> {
+                        DashboardScreen(
+                            viewModel = viewModel,
+                            onAddApp  = { currentScreen = Screen.AppSelection }
+                        )
+                    }
+                    Screen.AppSelection -> {
+                        AppSelectionScreen(
+                            viewModel = viewModel,
+                            onBack    = { currentScreen = Screen.Dashboard },
+                            onSelect  = { pkg ->
+                                viewModel.selectApp(pkg)
+                                currentScreen = Screen.Dashboard
+                            }
+                        )
+                    }
+                }
+            }
         }
 
-        observeViewModel()
-        requestPermissionsIfNeeded()
-        startMonitoringService()
+        observeSnackbar()
+        requestPostNotificationsIfNeeded()
     }
 
-    private fun observeViewModel() {
+    override fun onResume() {
+        super.onResume()
+        // Refresh the accessibility status badge every time the user returns
+        viewModel.refreshAccessibilityStatus()
+    }
+
+    // ─── Snackbar observer ────────────────────────────────────────────────────
+
+    private fun observeSnackbar() {
         lifecycleScope.launch {
-            viewModel.snackbarMessage.collect { message ->
+            viewModel.snackbar.collect { message ->
                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun startMonitoringService() {
-        if (!hasUsageStatsPermission()) return
-        val intent = Intent(this, UsageMonitorService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
-        MonitoringWorker.schedule(this)
-    }
+    // ─── Permission helpers ───────────────────────────────────────────────────
 
-    private fun requestPermissionsIfNeeded() {
-        if (!hasUsageStatsPermission()) {
-            android.app.AlertDialog.Builder(this)
-                .setTitle("Usage Access Required")
-                .setMessage("Scroll Guard needs Usage Access to track your screen time. Please enable it in the next screen.")
-                .setPositiveButton("Enable") { _, _ ->
-                    startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-                }
-                .setCancelable(false)
-                .show()
-            return
-        }
-
-        if (!Settings.canDrawOverlays(this)) {
-            android.app.AlertDialog.Builder(this)
-                .setTitle("Overlay Permission Required")
-                .setMessage("To block apps when your time limit is reached, Scroll Guard needs permission to display over other apps.")
-                .setPositiveButton("Enable") { _, _ ->
-                    val intent = Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        android.net.Uri.parse("package:$packageName")
-                    )
-                    startActivity(intent)
-                }
-                .setCancelable(false)
-                .show()
-            return
-        }
-
-        if (!isAccessibilityServiceEnabled()) {
-            android.app.AlertDialog.Builder(this)
-                .setTitle("Accessibility Service Required")
-                .setMessage("To detect when you open restricted apps instantly, please enable the Scroll Guard Accessibility Service.")
-                .setPositiveButton("Enable") { _, _ ->
-                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                }
-                .setCancelable(false)
-                .show()
-            return
-        }
-
+    private fun requestPostNotificationsIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissions(
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    101
+                )
             }
         }
-        requestIgnoreBatteryOptimizations()
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
-        var accessibilityEnabled = 0
+        var enabled = 0
         try {
-            accessibilityEnabled = Settings.Secure.getInt(
-                contentResolver,
-                Settings.Secure.ACCESSIBILITY_ENABLED
+            enabled = Settings.Secure.getInt(
+                contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED
             )
-        } catch (e: Settings.SettingNotFoundException) {
-            // Ignore
-        }
-        if (accessibilityEnabled == 1) {
-            val settingValue = Settings.Secure.getString(
-                contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        } catch (_: Settings.SettingNotFoundException) {}
+        Log.d("ScrollGuard", "isAccessibilityServiceEnabled: Secure.ACCESSIBILITY_ENABLED=$enabled")
+
+        if (enabled == 1) {
+            val services = Settings.Secure.getString(
+                contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
             )
-            if (settingValue != null) {
-                val service = android.content.ComponentName(packageName, com.example.scrollproject.services.ScrollGuardAccessibilityService::class.java.name).flattenToString()
-                return settingValue.contains(service)
-            }
+            Log.d("ScrollGuard", "isAccessibilityServiceEnabled: Secure.ENABLED_ACCESSIBILITY_SERVICES=$services")
+            if (services == null) return false
+            val component = android.content.ComponentName(
+                packageName,
+                com.example.scrollproject.services.ScrollGuardAccessibilityService::class.java.name
+            ).flattenToString()
+            val isEnabled = services.contains(component, ignoreCase = true)
+            Log.d("ScrollGuard", "isAccessibilityServiceEnabled: target=$component, isEnabled=$isEnabled")
+            return isEnabled
         }
         return false
     }
 
-    private fun requestIgnoreBatteryOptimizations() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val intent = Intent()
-            val packageName = packageName
-            val pm = getSystemService(POWER_SERVICE) as PowerManager
-            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-                intent.action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-                intent.data = android.net.Uri.parse("package:$packageName")
-                startActivity(intent)
-            }
-        }
-    }
-
-    private fun requestUsageStatsPermission() {
-        startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-    }
-
-    private fun hasUsageStatsPermission(): Boolean {
-        val appOps = getSystemService(APP_OPS_SERVICE) as AppOpsManager
+    private fun isUsageStatsPermissionGranted(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             appOps.unsafeCheckOpNoThrow(
                 AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
+                Process.myUid(),
                 packageName
             )
         } else {
-            @Suppress("DEPRECATION")
             appOps.checkOpNoThrow(
                 AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
+                Process.myUid(),
                 packageName
             )
         }
-        return mode == AppOpsManager.MODE_ALLOWED
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Re-attempt start if permission was just granted
-        startMonitoringService()
+        val isGranted = mode == AppOpsManager.MODE_ALLOWED
+        Log.d("ScrollGuard", "isUsageStatsPermissionGranted: mode=$mode, isGranted=$isGranted")
+        return isGranted
     }
 }
