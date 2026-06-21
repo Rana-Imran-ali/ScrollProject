@@ -30,6 +30,11 @@ class DashboardViewModel @Inject constructor(
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
+    private val _openTimeInputDialog = MutableSharedFlow<MonitoredApp>(extraBufferCapacity = 1)
+    val openTimeInputDialog: SharedFlow<MonitoredApp> = _openTimeInputDialog.asSharedFlow()
+
+    var hasAutoNavigatedToSelection = false
+
     // ─── App picker state ─────────────────────────────────────────────────────
 
     private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
@@ -153,12 +158,29 @@ class DashboardViewModel @Inject constructor(
      * as a belt-and-suspenders guard if the service is already dead.
      */
     fun stopCountdown(context: Context) {
+        val selected = _state.value.selectedApp
+        if (selected != null) {
+            TimerManager.stopAppMonitoring(selected.packageName)
+            if (!TimerManager.hasAnyActiveMonitoring()) {
+                try {
+                    val stopIntent = Intent(context, CountdownService::class.java)
+                        .apply { action = CountdownService.ACTION_STOP }
+                    context.startService(stopIntent)
+                } catch (_: Exception) { /* service may already be stopped */ }
+            }
+        }
+    }
+
+    fun saveAppLimit(app: MonitoredApp, seconds: Long) {
+        TimerManager.start(app.packageName, app.appName, seconds)
+        val serviceIntent = Intent(context, CountdownService::class.java)
         try {
-            val stopIntent = Intent(context, CountdownService::class.java)
-                .apply { action = CountdownService.ACTION_STOP }
-            context.startService(stopIntent)
-        } catch (_: Exception) { /* service may already be stopped */ }
-        TimerManager.stop()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (_: Exception) {}
     }
 
     fun setCountdownSeconds(seconds: Long) {
@@ -188,13 +210,21 @@ class DashboardViewModel @Inject constructor(
      * Called when the user selects an app from the picker.
      * Persists to Room (so the selection survives restarts) and updates UI state.
      */
-    fun selectApp(pkg: String) {
+    fun selectApp(pkg: String, seconds: Long = 3600L) {
         val app  = _installedApps.value.find { it.packageName == pkg } ?: return
         val icon = try { context.packageManager.getApplicationIcon(pkg) }
                    catch (_: Exception) { null }
 
-        val monitored = MonitoredApp(packageName = app.packageName, appName = app.appName, icon = icon)
-        viewModelScope.launch { repository.addMonitoredApp(monitored) }
+        val monitored = MonitoredApp(
+            packageName = app.packageName,
+            appName = app.appName,
+            icon = icon,
+            limitSeconds = seconds,
+            remainingSeconds = seconds
+        )
+        viewModelScope.launch {
+            repository.addMonitoredApp(monitored)
+        }
 
         _state.update { s ->
             s.copy(
@@ -202,38 +232,43 @@ class DashboardViewModel @Inject constructor(
                 monitoredApps = s.monitoredApps.filter { it.packageName != pkg } + monitored
             )
         }
-        // Clear the search query so the picker is clean on next open.
+        TimerManager.selectApp(pkg)
+        saveAppLimit(monitored, seconds)
         _searchQuery.value = ""
     }
 
     fun loadMonitoredApps() {
         viewModelScope.launch {
             repository.getMonitoredApps().collect { apps ->
-                val selected = _state.value.selectedApp ?: apps.firstOrNull()
-                _state.update { it.copy(monitoredApps = apps, selectedApp = selected) }
+                _state.update { it.copy(monitoredApps = apps, isMonitoredAppsLoaded = true) }
             }
         }
     }
 
     fun selectFromMonitored(app: MonitoredApp) {
         _state.update { it.copy(selectedApp = app) }
+        TimerManager.selectApp(app.packageName)
+        viewModelScope.launch {
+            _openTimeInputDialog.emit(app)
+        }
     }
 
     fun removeApp(packageName: String) {
         viewModelScope.launch {
-            if (TimerManager.isRunning.value && TimerManager.monitoredPackage.value == packageName) {
-                stopCountdown(context)
-            }
-            // Lift any post-expiry block the Accessibility Service is holding for
-            // this app. The ?.invoke() is a safe no-op if the service is not connected.
+            // Remove from TimerManager memory (stops ticking, cleans map)
+            TimerManager.removeApp(packageName)
+            // Lift any post-expiry block held by the Accessibility Service
             ScrollGuardAccessibilityService.clearBlock?.invoke()
+            // Remove from DB
             repository.removeMonitoredApp(packageName)
+            // Update UI state
             _state.update { s ->
                 val remaining = s.monitoredApps.filter { it.packageName != packageName }
                 val newSelected = if (s.selectedApp?.packageName == packageName)
                     remaining.firstOrNull() else s.selectedApp
                 s.copy(monitoredApps = remaining, selectedApp = newSelected)
             }
+            TimerManager.selectApp(_state.value.selectedApp?.packageName)
         }
     }
 

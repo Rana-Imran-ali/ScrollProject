@@ -2,6 +2,8 @@ package com.example.scrollproject.services
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
@@ -67,10 +69,7 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
         serviceInfo = info
 
         // TimerManager calls this from its IO coroutine the instant remaining == 0.
-        TimerManager.onTimerExpired = {
-            // Snapshot names NOW — stop() will null them out on the next line.
-            val pkg  = TimerManager.monitoredPackage.value
-            val name = TimerManager.monitoredAppName.value
+        TimerManager.onTimerExpired = { pkg, name ->
             expiredPackage = pkg
             expiredAppName = name
             mainHandler.post { enforceExpiry() }
@@ -82,6 +81,20 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
             expiredPackage = null
             expiredAppName = null
         }
+
+        // Restore/Ensure CountdownService is running if there is an active session
+        if (TimerManager.isRunning.value) {
+            val serviceIntent = Intent(applicationContext, CountdownService::class.java)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(serviceIntent)
+                } else {
+                    startService(serviceIntent)
+                }
+            } catch (e: Exception) {
+                // Log or ignore
+            }
+        }
     }
 
     // ─── Accessibility events ─────────────────────────────────────────────────
@@ -90,15 +103,16 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString()?.takeIf { it.isNotEmpty() } ?: return
 
-        // Ignore system chrome and ourselves.
-        if (pkg == packageName || pkg == "com.android.systemui") return
-
         // Always keep TimerManager informed of the current foreground package.
         TimerManager.setActiveForegroundPackage(pkg)
 
-        // Post-expiry guard: block any attempt to reopen the monitored app.
-        val expired = expiredPackage
-        if (expired != null && pkg == expired && !TimerManager.isRunning.value) {
+        // Ignore system chrome and ourselves.
+        if (pkg == packageName || pkg == "com.android.systemui") return
+
+        // Post-expiry guard: block any attempt to reopen a blocked monitored app.
+        if (TimerManager.isPackageBlocked(pkg)) {
+            expiredPackage = pkg
+            expiredAppName = TimerManager.getAppName(pkg)
             mainHandler.post { enforceExpiry() }
         }
     }

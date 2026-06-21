@@ -1,142 +1,389 @@
 package com.example.scrollproject.core
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import com.example.scrollproject.data.local.MonitoredAppEntity
+import com.example.scrollproject.data.local.ScrollGuardDatabase
+import com.example.scrollproject.services.CountdownService
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 
 /**
  * TimerManager — global countdown singleton.
  *
- * Design decisions:
- *  • Uses wall-clock anchoring (System.currentTimeMillis) instead of pure delay()
- *    to guarantee accurate timing regardless of coroutine scheduling jitter. Over
- *    a 30-minute session, drift is < 1 second.
- *  • Survives screen changes and app minimisation because it lives in a top-level
- *    object outside any Activity/Fragment lifecycle.
- *  • The foreground CountdownService keeps the process alive so Android does not
- *    kill the coroutine scope while the screen is off.
- *  • onTimerExpired is called on the IO thread; callers must dispatch to Main if
- *    they need to touch Views.
+ * Supports multiple apps simultaneously:
+ *  • Every non-blocked app in the map is always "active" (no isMonitoringActive flag).
+ *  • The in-memory map is updated immediately on start() so checkForegroundState()
+ *    can find the app right away.
+ *  • Daily date-based reset is applied lazily when the DB flow emits.
  */
 object TimerManager {
 
-    // Dedicated IO scope — outlives every Activity.
-    private val scope   = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var tickJob: Job? = null
+    private val lock = Any()
 
-    // ─── Public state ─────────────────────────────────────────────────────────
+    private lateinit var db: ScrollGuardDatabase
 
-    /** Seconds remaining in the active countdown. 0 = expired or not started. */
+    /**
+     * In-memory mirror of monitored_apps. Updated immediately on start()
+     * and lazily synced from the Room flow for everything else.
+     */
+    private val monitoredAppsMap = java.util.concurrent.ConcurrentHashMap<String, MonitoredAppEntity>()
+    private var currentSelectedPackage: String? = null
+
+    // ─── Public state (reflects selected app) ────────────────────────────────
+
     private val _remainingSeconds = MutableStateFlow(0L)
     val remainingSeconds: StateFlow<Long> = _remainingSeconds.asStateFlow()
 
-    /** Total seconds the current session was started with (used for ring progress). */
     private val _totalSeconds = MutableStateFlow(0L)
     val totalSeconds: StateFlow<Long> = _totalSeconds.asStateFlow()
 
-    /** True while the ticker is running. */
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()
 
-    /** Package name of the app being monitored. */
     private val _monitoredPackage = MutableStateFlow<String?>(null)
     val monitoredPackage: StateFlow<String?> = _monitoredPackage.asStateFlow()
 
-    /** Display name of the monitored app (shown in notifications and toasts). */
     private val _monitoredAppName = MutableStateFlow<String?>(null)
     val monitoredAppName: StateFlow<String?> = _monitoredAppName.asStateFlow()
 
-    // ─── Internal state ───────────────────────────────────────────────────────
+    // ─── Internal ─────────────────────────────────────────────────────────────
 
-    /**
-     * Package currently in the foreground, updated by the Accessibility Service
-     * on every TYPE_WINDOW_STATE_CHANGED event.
-     */
+    private lateinit var appPackageName: String
+
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                setActiveForegroundPackage(null)
+            }
+        }
+    }
+
     @Volatile var activeForegroundPackage: String? = null
         private set
 
-    /**
-     * Callback fired the instant the timer reaches zero.
-     * Set by ScrollGuardAccessibilityService; cleared on stop/destroy.
-     * Always invoked on the IO thread — post to Main before touching Views.
-     */
-    var onTimerExpired: (() -> Unit)? = null
+    @Volatile private var tickingPackage: String? = null
+
+    var onTimerExpired: ((packageName: String, appName: String) -> Unit)? = null
+
+    private var lastActiveTimeMs: Long = 0L
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+
+    fun init(context: Context) {
+        appPackageName = context.packageName
+        db = ScrollGuardDatabase.getInstance(context)
+
+        // Register screen state receiver
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(screenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                context.registerReceiver(screenReceiver, filter)
+            }
+        } catch (_: Exception) {}
+
+        // Sync map from DB and apply daily resets safely
+        scope.launch(Dispatchers.IO) {
+            try {
+                // Get one-shot initial list of apps to check for daily resets.
+                // Using first() avoids re-entrant writes during live collection.
+                val entities = db.monitoredAppDao().getAllApps().first()
+                val currentDate = getCurrentDateString()
+                val toReset = entities.filter { it.lastResetDate != currentDate }
+
+                if (toReset.isNotEmpty()) {
+                    toReset.forEach { app ->
+                        val reset = app.copy(
+                            remainingSeconds  = app.dailyLimitSeconds,
+                            usedSeconds       = 0L,
+                            isBlocked         = false,
+                            isMonitoringActive = true,
+                            lastResetDate     = currentDate
+                        )
+                        db.monitoredAppDao().insert(reset)
+                    }
+                }
+
+                // Now start the live flow collector to keep monitoredAppsMap synchronized.
+                db.monitoredAppDao().getAllApps().collect { liveEntities ->
+                    synchronized(lock) {
+                        for (app in liveEntities) {
+                            val inFlight = monitoredAppsMap[app.packageName]
+                            if (inFlight == null) {
+                                monitoredAppsMap[app.packageName] = app
+                            } else {
+                                monitoredAppsMap[app.packageName] = inFlight.copy(
+                                    dailyLimitSeconds  = app.dailyLimitSeconds,
+                                    isBlocked          = app.isBlocked,
+                                    lastResetDate      = app.lastResetDate,
+                                    appName            = app.appName
+                                )
+                            }
+                        }
+                        val dbKeys = liveEntities.map { it.packageName }.toSet()
+                        monitoredAppsMap.keys.retainAll(dbKeys)
+
+                        updatePublicStateFlows()
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ScrollGuard", "TimerManager database sync failed safely", e)
+            }
+        }
+
+        // Start CountdownService to keep the process and accessibility service alive
+        scope.launch {
+            delay(800L)
+            startCountdownService(context)
+        }
+    }
 
     // ─── Public API ───────────────────────────────────────────────────────────
 
     /**
-     * Begin a new countdown. Any existing session is cancelled first.
-     *
-     * @param packageName  Package to monitor (compared against foreground app).
-     * @param appName      Human-readable label used in notifications and toasts.
-     * @param seconds      Session duration in seconds (must be > 0).
+     * Register/update a monitored app and immediately start tracking it.
+     * The in-memory map is updated synchronously so checkForegroundState()
+     * works right away without waiting for the DB flow.
      */
     fun start(packageName: String, appName: String, seconds: Long) {
-        require(seconds > 0) { "Countdown duration must be positive." }
-        stop()                              // clean up any running session
-        _monitoredPackage.value = packageName
-        _monitoredAppName.value = appName
-        _totalSeconds.value     = seconds
-        _remainingSeconds.value = seconds
-        _isRunning.value        = true
-        startTicking()
+        require(seconds > 0)
+        synchronized(lock) {
+            val existing = monitoredAppsMap[packageName]
+            val entity = MonitoredAppEntity(
+                packageName        = packageName,
+                appName            = appName,
+                dailyLimitSeconds  = seconds,
+                remainingSeconds   = seconds,
+                usedSeconds        = existing?.usedSeconds ?: 0L,
+                isBlocked          = false,
+                isMonitoringActive = true,
+                lastResetDate      = getCurrentDateString(),
+                addedAt            = existing?.addedAt ?: System.currentTimeMillis()
+            )
+            // ← Immediate in-memory update (key fix)
+            monitoredAppsMap[packageName] = entity
+            currentSelectedPackage = packageName
+            updatePublicStateFlows()
+
+            // Persist asynchronously
+            scope.launch(Dispatchers.IO) { db.monitoredAppDao().insert(entity) }
+
+            // Kick the tick loop now that the map has the app
+            checkForegroundState()
+        }
     }
 
-    /**
-     * Cancel the countdown and reset all state.
-     * Safe to call even if no session is running.
-     */
     fun stop() {
-        tickJob?.cancel()
-        tickJob = null
-        _isRunning.value        = false
-        _remainingSeconds.value = 0L
-        _totalSeconds.value     = 0L
-        _monitoredPackage.value = null
-        _monitoredAppName.value = null
-        activeForegroundPackage = null
+        synchronized(lock) { currentSelectedPackage?.let { stopAppMonitoring(it) } }
     }
+
+    fun stopAppMonitoring(packageName: String) {
+        synchronized(lock) {
+            val app = monitoredAppsMap[packageName] ?: return
+            val updated = app.copy(isMonitoringActive = false)
+            monitoredAppsMap[packageName] = updated
+            scope.launch(Dispatchers.IO) { db.monitoredAppDao().insert(updated) }
+
+            if (tickingPackage == packageName) {
+                tickJob?.cancel()
+                tickJob = null
+                tickingPackage = null
+            }
+            updatePublicStateFlows()
+        }
+    }
+
+    fun removeApp(packageName: String) {
+        synchronized(lock) {
+            monitoredAppsMap.remove(packageName)
+            if (tickingPackage == packageName) {
+                tickJob?.cancel()
+                tickJob = null
+                tickingPackage = null
+            }
+            if (currentSelectedPackage == packageName) {
+                currentSelectedPackage = monitoredAppsMap.keys.firstOrNull()
+            }
+            updatePublicStateFlows()
+        }
+    }
+
+    fun selectApp(packageName: String?) {
+        synchronized(lock) {
+            currentSelectedPackage = packageName
+            updatePublicStateFlows()
+        }
+    }
+
+    // ─── Queries ──────────────────────────────────────────────────────────────
+
+    fun isPackageBlocked(pkg: String) = monitoredAppsMap[pkg]?.isBlocked == true
+
+    fun isPackageMonitored(pkg: String) = monitoredAppsMap.containsKey(pkg)
+
+    fun getAppName(pkg: String) = monitoredAppsMap[pkg]?.appName
+
+    fun getMinRemainingSecondsOfActiveApps(): Long {
+        val min = monitoredAppsMap.values
+            .filter { !it.isBlocked && it.remainingSeconds > 0 }
+            .minOfOrNull { it.remainingSeconds }
+        return min ?: 0L
+    }
+
+    fun hasAnyActiveMonitoring(): Boolean =
+        monitoredAppsMap.values.any { !it.isBlocked && it.remainingSeconds > 0 }
 
     // ─── Accessibility bridge ─────────────────────────────────────────────────
 
-    /** Called by ScrollGuardAccessibilityService on every window-state change. */
     fun setActiveForegroundPackage(pkg: String?) {
-        activeForegroundPackage = if (pkg.isNullOrEmpty()) null else pkg
+        synchronized(lock) {
+            val isOurs = ::appPackageName.isInitialized && pkg == appPackageName
+            val cleanPkg = if (pkg.isNullOrEmpty() || isOurs || pkg == "com.android.systemui") null else pkg
+            
+            // Sync currentSelectedPackage with the monitored foreground app
+            if (cleanPkg != null && monitoredAppsMap.containsKey(cleanPkg)) {
+                currentSelectedPackage = cleanPkg
+            }
+            
+            activeForegroundPackage = cleanPkg
+            checkForegroundState()
+        }
     }
 
-    // ─── Internal tick loop ───────────────────────────────────────────────────
+    // ─── Internal tick engine ─────────────────────────────────────────────────
 
     /**
-     * Wall-clock-anchored tick loop.
+     * Decides whether to start or stop the tick loop.
      *
-     * Instead of blindly delaying 1000 ms and subtracting 1, we record the
-     * session's end time at launch and compute remaining seconds from the
-     * real clock each tick. This eliminates cumulative drift from coroutine
-     * scheduling overhead, GC pauses, and Doze-mode wake-up latency.
+     * Rule: tick only when the foreground app is in our map AND not blocked.
+     * If the foreground app changes, the loop restarts for the new app.
      */
-    private fun startTicking() {
-        val endAt = System.currentTimeMillis() + (_totalSeconds.value * 1_000L)
+    private fun checkForegroundState() {
+        val fgPkg = activeForegroundPackage
+        val shouldTick = fgPkg != null &&
+                monitoredAppsMap.containsKey(fgPkg) &&
+                monitoredAppsMap[fgPkg]?.isBlocked == false &&
+                (monitoredAppsMap[fgPkg]?.remainingSeconds ?: 0L) > 0L
 
-        tickJob = scope.launch {
-            while (isActive && _isRunning.value) {
-                val nowMs    = System.currentTimeMillis()
-                val leftMs   = endAt - nowMs
-                val leftSecs = (leftMs / 1_000L).coerceAtLeast(0L)
+        if (shouldTick) {
+            if (tickingPackage != fgPkg) {
+                // Foreground app changed — flush elapsed time for old app, start fresh
+                flushElapsedForCurrentTick()
+                tickJob?.cancel()
+                tickJob = null
+                tickingPackage = fgPkg
+                lastActiveTimeMs = System.currentTimeMillis()
+                startTicking()
+            } else if (tickJob == null || !tickJob!!.isActive) {
+                // Same app, but tick loop died — restart
+                lastActiveTimeMs = System.currentTimeMillis()
+                startTicking()
+            }
+        } else {
+            // App left foreground or is blocked — flush and pause
+            flushElapsedForCurrentTick()
+            tickJob?.cancel()
+            tickJob = null
+            tickingPackage = null
+        }
+    }
 
-                _remainingSeconds.value = leftSecs
-
-                if (leftSecs <= 0L) {
-                    _isRunning.value = false
-                    onTimerExpired?.invoke()
-                    break
-                }
-
-                // Sleep until the next whole second boundary (not a fixed 1000 ms).
-                // This keeps the UI clock perfectly synchronised with wall time.
-                val msUntilNextTick = leftMs % 1_000L
-                delay(if (msUntilNextTick > 0L) msUntilNextTick else 1_000L)
+    private fun flushElapsedForCurrentTick() {
+        val pkg = tickingPackage ?: return
+        val elapsed = (System.currentTimeMillis() - lastActiveTimeMs) / 1000L
+        if (elapsed > 0L) {
+            decrementRemainingTime(pkg, elapsed, forceDbWrite = true)
+        } else {
+            // Write current state to DB anyway to persist latest tick decrements
+            monitoredAppsMap[pkg]?.let { app ->
+                scope.launch(Dispatchers.IO) { db.monitoredAppDao().insert(app) }
             }
         }
+    }
+
+    private fun startTicking() {
+        tickJob = scope.launch {
+            var tickCount = 0
+            while (isActive) {
+                delay(1000L)
+                synchronized(lock) {
+                    val fgPkg = activeForegroundPackage
+                    if (fgPkg != null && fgPkg == tickingPackage &&
+                        monitoredAppsMap[fgPkg]?.isBlocked == false) {
+                        val now = System.currentTimeMillis()
+                        val elapsed = (now - lastActiveTimeMs) / 1000L
+                        if (elapsed > 0L) {
+                            tickCount++
+                            val forceDbWrite = (tickCount % 10 == 0)
+                            decrementRemainingTime(fgPkg, elapsed, forceDbWrite)
+                            lastActiveTimeMs += elapsed * 1000L
+                        }
+                    } else {
+                        // Foreground shifted — let checkForegroundState handle it
+                        tickJob?.cancel()
+                        tickJob = null
+                        checkForegroundState()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun decrementRemainingTime(pkg: String, elapsedSec: Long, forceDbWrite: Boolean = false) {
+        val app = monitoredAppsMap[pkg] ?: return
+        val nextRemaining = (app.remainingSeconds - elapsedSec).coerceAtLeast(0L)
+        val nextUsed      = app.usedSeconds + elapsedSec
+        val expired       = nextRemaining <= 0L
+
+        val updated = app.copy(
+            remainingSeconds   = nextRemaining,
+            usedSeconds        = nextUsed,
+            isBlocked          = expired,
+            isMonitoringActive = !expired
+        )
+        monitoredAppsMap[pkg] = updated
+        updatePublicStateFlows()
+
+        if (expired || forceDbWrite) {
+            scope.launch(Dispatchers.IO) { db.monitoredAppDao().insert(updated) }
+        }
+
+        if (expired) {
+            tickJob?.cancel(); tickJob = null; tickingPackage = null
+            onTimerExpired?.invoke(pkg, app.appName)
+        }
+    }
+
+    private fun updatePublicStateFlows() {
+        val app = monitoredAppsMap[currentSelectedPackage]
+        _remainingSeconds.value = app?.remainingSeconds ?: 0L
+        _totalSeconds.value     = app?.dailyLimitSeconds ?: 0L
+        _isRunning.value        = app != null && !app.isBlocked && app.remainingSeconds > 0L
+        _monitoredPackage.value = app?.packageName
+        _monitoredAppName.value = app?.appName
+    }
+
+    private fun startCountdownService(context: Context) {
+        val intent = Intent(context, CountdownService::class.java)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                context.startForegroundService(intent)
+            else context.startService(intent)
+        } catch (_: Exception) {}
+    }
+
+    private fun getCurrentDateString(): String {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        return sdf.format(java.util.Date())
     }
 }

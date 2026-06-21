@@ -64,14 +64,28 @@ class ScrollGuardRepository @Inject constructor(
 
     private fun MonitoredAppEntity.toDomain(ctx: Context): MonitoredApp {
         val icon = try { ctx.packageManager.getApplicationIcon(packageName) } catch (_: Exception) { null }
-        return MonitoredApp(packageName = packageName, appName = appName, icon = icon)
+        return MonitoredApp(
+            packageName = packageName,
+            appName = appName,
+            icon = icon,
+            limitSeconds = dailyLimitSeconds,
+            remainingSeconds = remainingSeconds,
+            usedSeconds = usedSeconds,
+            isMonitoringActive = isMonitoringActive,
+            isBlocked = isBlocked
+        )
     }
 
-    /** Maps the simplified domain model back to the full entity (unused columns get sensible defaults). */
+    /** Maps the simplified domain model back to the full entity. */
     private fun MonitoredApp.toEntity() = MonitoredAppEntity(
         packageName       = packageName,
         appName           = appName,
-        dailyLimitMinutes = Int.MAX_VALUE,   // unused — no daily limit concept anymore
-        isBlockingEnabled = false            // unused — enforcement handled by TimerManager
+        dailyLimitMinutes = (limitSeconds / 60L).toInt(),
+        isBlockingEnabled = isBlocked,
+        dailyLimitSeconds = limitSeconds,
+        remainingSeconds  = remainingSeconds,
+        usedSeconds       = usedSeconds,
+        isBlocked         = isBlocked,
+        isMonitoringActive = isMonitoringActive
     )
 }

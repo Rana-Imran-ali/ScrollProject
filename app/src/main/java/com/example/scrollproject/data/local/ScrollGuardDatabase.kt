@@ -9,7 +9,7 @@ import androidx.room.RoomDatabase
     entities = [
         MonitoredAppEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class ScrollGuardDatabase : RoomDatabase() {

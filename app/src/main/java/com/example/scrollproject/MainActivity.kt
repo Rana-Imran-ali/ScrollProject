@@ -2,6 +2,7 @@ package com.example.scrollproject
 
 import android.app.AppOpsManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -90,8 +91,8 @@ class MainActivity : AppCompatActivity() {
                         AppSelectionScreen(
                             viewModel = viewModel,
                             onBack    = { currentScreen = Screen.Dashboard },
-                            onSelect  = { pkg ->
-                                viewModel.selectApp(pkg)
+                            onSelect  = { pkg, seconds ->
+                                viewModel.selectApp(pkg, seconds)
                                 currentScreen = Screen.Dashboard
                             }
                         )
@@ -102,6 +103,20 @@ class MainActivity : AppCompatActivity() {
 
         observeSnackbar()
         requestPostNotificationsIfNeeded()
+
+        // Always start the foreground service to keep the process alive.
+        // This preserves the Accessibility Service connection and granted permissions
+        // even when no apps are currently being monitored.
+        val serviceIntent = Intent(this, com.example.scrollproject.services.CountdownService::class.java)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            // Ignore — service may already be running
+        }
     }
 
     override fun onResume() {

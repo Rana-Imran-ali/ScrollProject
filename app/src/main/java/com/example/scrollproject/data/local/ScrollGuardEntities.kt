@@ -10,5 +10,11 @@ data class MonitoredAppEntity(
     val appName: String,
     val dailyLimitMinutes: Int = 60,
     val isBlockingEnabled: Boolean = true,
+    val dailyLimitSeconds: Long = 3600L,
+    val remainingSeconds: Long = 3600L,
+    val usedSeconds: Long = 0L,
+    val isBlocked: Boolean = false,
+    val isMonitoringActive: Boolean = false,
+    val lastResetDate: String = "",
     val addedAt: Long = System.currentTimeMillis()
 )

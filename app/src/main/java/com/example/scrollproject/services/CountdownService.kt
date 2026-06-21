@@ -12,6 +12,7 @@ import com.example.scrollproject.core.TimerManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * CountdownService — foreground service that keeps the process alive during an
@@ -63,7 +64,18 @@ class CountdownService : Service() {
         super.onCreate()
         detector = ForegroundAppDetector(applicationContext)
         ensureCountdownChannel()
-        startForeground(NOTIF_ID, buildForegroundNotification("Starting timer…"))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                NOTIF_ID,
+                buildForegroundNotification("Scroll Guard Active · Monitoring ready"),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(
+                NOTIF_ID,
+                buildForegroundNotification("Scroll Guard Active · Monitoring ready")
+            )
+        }
         observeTimerForNotification()
         startFallbackEnforcement()
     }
@@ -71,9 +83,11 @@ class CountdownService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             TimerManager.stop()
-            stopSelf()
+            // Update notification to ready state instead of stopping the service.
+            // Stopping the service kills the process, disconnecting the accessibility service.
+            updateForegroundNotification("Scroll Guard Active · Monitoring ready")
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -99,7 +113,7 @@ class CountdownService : Service() {
                 Triple(remaining, running, appName)
             }
                 .distinctUntilChanged()
-                .collect { (remaining, running, appName) ->
+                .collectLatest { (remaining, running, appName) ->
                     when {
                         running -> {
                             // Live tick — update the countdown label.
@@ -107,19 +121,18 @@ class CountdownService : Service() {
                                 "Monitoring ${appName ?: "app"} · ${formatTime(remaining)} left"
                             )
                         }
-                        !running && TimerManager.totalSeconds.value == 0L -> {
-                            // Manual stop: totalSeconds reset to 0 by TimerManager.stop().
-                            stopSelf()
-                        }
-                        !running && remaining == 0L -> {
-                            // Natural expiry — foreground notification updated briefly,
-                            // then service shuts down (the expiry notification is
-                            // handled by enforceExpiry / AccessibilityService).
+                        !running && remaining == 0L && appName != null -> {
+                            // Natural expiry — show brief expiry message then revert to ready.
                             updateForegroundNotification(
-                                "⏰ Time is finished. ${appName ?: "App"} has been closed."
+                                "⏰ ${appName} time finished. App closed."
                             )
                             delay(4_000L)
-                            stopSelf()
+                            // After expiry message, return to ready state (service stays alive).
+                            updateForegroundNotification("Scroll Guard Active · Monitoring ready")
+                        }
+                        else -> {
+                            // Idle or no app selected — show ready state.
+                            updateForegroundNotification("Scroll Guard Active · Monitoring ready")
                         }
                     }
                 }
@@ -139,17 +152,37 @@ class CountdownService : Service() {
      *     perform the redirect + notification.
      */
     private fun startFallbackEnforcement() {
+        val pm = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
         serviceScope.launch(Dispatchers.IO) {
             while (isActive) {
-                if (!ScrollGuardAccessibilityService.isConnected && TimerManager.isRunning.value) {
-                    val pkg = detector.getForegroundPackage()
-                    if (!pkg.isNullOrEmpty()) {
-                        TimerManager.setActiveForegroundPackage(pkg)
+                val isInteractive = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
+                    pm.isInteractive
+                } else {
+                    @Suppress("DEPRECATION")
+                    pm.isScreenOn
+                }
+
+                if (isInteractive) {
+                    if (!ScrollGuardAccessibilityService.isConnected) {
+                        val pkg = detector.getForegroundPackage()
+                        if (!pkg.isNullOrEmpty()) {
+                            TimerManager.setActiveForegroundPackage(pkg)
+
+                            // Check if the foreground app is blocked!
+                            if (TimerManager.isPackageBlocked(pkg)) {
+                                expiredPackage = pkg
+                                expiredAppName = TimerManager.getAppName(pkg)
+                                enforceExpiryFallback()
+                            }
+                        }
                     }
+                } else {
+                    // Screen is off — clear foreground package to pause ticking immediately
+                    TimerManager.setActiveForegroundPackage(null)
                 }
 
                 // Adaptive interval — tighter in the final 10 s.
-                val remaining = TimerManager.remainingSeconds.value
+                val remaining = TimerManager.getMinRemainingSecondsOfActiveApps()
                 delay(if (remaining in 1..10) FAST_MS else POLL_MS)
             }
         }
@@ -157,9 +190,9 @@ class CountdownService : Service() {
         // Wire the expiry callback for the fallback path.
         // (The AccessibilityService overwrites this with its own handler when connected.)
         if (!ScrollGuardAccessibilityService.isConnected) {
-            TimerManager.onTimerExpired = {
-                expiredPackage = TimerManager.monitoredPackage.value
-                expiredAppName  = TimerManager.monitoredAppName.value
+            TimerManager.onTimerExpired = { pkg, name ->
+                expiredPackage = pkg
+                expiredAppName  = name
                 serviceScope.launch(Dispatchers.IO) {
                     enforceExpiryFallback()
                 }

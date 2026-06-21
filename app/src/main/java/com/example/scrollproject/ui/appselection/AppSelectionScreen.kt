@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.example.scrollproject.domain.model.AppInfo
 import com.example.scrollproject.domain.model.MonitoredApp
 import com.example.scrollproject.ui.compose.AppIconView
@@ -32,12 +34,98 @@ private val TextSecondary = Color(0xFF8888AA)
 fun AppSelectionScreen(
     viewModel: DashboardViewModel,
     onBack: () -> Unit,
-    onSelect: (String) -> Unit
+    onSelect: (String, Long) -> Unit
 ) {
     val apps by viewModel.filteredApps.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
     val state by viewModel.state.collectAsState()
     val isLoading = state.isLoadingApps
+
+    var showTimeInputDialog by remember { mutableStateOf(false) }
+    var selectedAppForLimit by remember { mutableStateOf<AppInfo?>(null) }
+
+    if (showTimeInputDialog && selectedAppForLimit != null) {
+        val app = selectedAppForLimit!!
+        var textValue by remember { mutableStateOf("60") }
+        AlertDialog(
+            onDismissRequest = { showTimeInputDialog = false },
+            title = {
+                Text(
+                    text = "Set Daily Limit",
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = "Enter the daily limit for ${app.appName} in seconds.",
+                        color = TextSecondary,
+                        fontSize = 14.sp
+                    )
+                    OutlinedTextField(
+                        value = textValue,
+                        onValueChange = { v ->
+                            textValue = v.filter { it.isDigit() }.take(6)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Seconds", color = TextSecondary) },
+                        suffix = { Text("sec", color = TextSecondary) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Cyan,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            cursorColor = Cyan
+                        )
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(30L to "30s", 60L to "1m", 300L to "5m", 600L to "10m").forEach { (value, label) ->
+                            FilterChip(
+                                selected = textValue == value.toString(),
+                                onClick = { textValue = value.toString() },
+                                label = { Text(label, fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Cyan.copy(alpha = 0.2f),
+                                    selectedLabelColor = Cyan,
+                                    containerColor = Surface2,
+                                    labelColor = TextSecondary
+                                )
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val seconds = textValue.toLongOrNull() ?: 0L
+                        if (seconds > 0L) {
+                            onSelect(app.packageName, seconds)
+                            showTimeInputDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = Color.Black)
+                ) {
+                    Text("Save", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimeInputDialog = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            },
+            containerColor = Surface2,
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
 
     // Fetch the list of apps when entering the screen
     LaunchedEffect(Unit) {
@@ -105,7 +193,10 @@ fun AppSelectionScreen(
                     items(apps, key = { it.packageName }) { app ->
                         AppPickerItem(
                             app = app,
-                            onClick = { onSelect(app.packageName) }
+                            onClick = {
+                                selectedAppForLimit = app
+                                showTimeInputDialog = true
+                            }
                         )
                     }
                 }
