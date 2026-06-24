@@ -15,31 +15,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
 
 /**
- * CountdownService — foreground service that keeps the process alive during an
- * active monitoring session and provides the fallback enforcement path.
+ * CountdownService — foreground service with two jobs:
  *
- * Dual-layer enforcement:
- *  ┌────────────────────────────────────────────────────────────────────────┐
- *  │ PRIMARY  │ ScrollGuardAccessibilityService                             │
- *  │          │  • Event-driven (TYPE_WINDOW_STATE_CHANGED)                 │
- *  │          │  • Uses GLOBAL_ACTION_HOME — bypasses all Android 12–15     │
- *  │          │    background-activity-start restrictions.                  │
- *  │          │  • Zero polling, zero battery overhead.                     │
- *  ├────────────────────────────────────────────────────────────────────────┤
- *  │ FALLBACK │ This service via ForegroundAppDetector (UsageStats)         │
- *  │          │  • Activated only when isConnected == false.                │
- *  │          │  • Polls at 2 s (1 s in final 10 s) on Dispatchers.IO.     │
- *  │          │  • Uses ACTION_MAIN + CATEGORY_HOME intent for redirect.    │
- *  │          │  • Posts ExpiryNotificationManager notification on expiry.  │
- *  └────────────────────────────────────────────────────────────────────────┘
+ * 1. Keeps the app process alive in the background (so the AccessibilityService stays connected).
+ * 2. Acts as a fallback enforcer: if the AccessibilityService is OFF, this service polls
+ *    every 2 seconds to check which app is open and enforces the block via a Home intent.
  *
- * Android 12–15 notes:
- *  • startForeground() called within onCreate() — well within the 5-second window.
- *  • PendingIntent.FLAG_IMMUTABLE used on all PendingIntents (required API 31+).
- *  • Background activity starts from a Service are blocked on Android 10+.
- *    Redirect uses CATEGORY_HOME which Android exempts from this restriction.
- *  • POST_NOTIFICATIONS permission declared in manifest (required API 33+).
- *  • foregroundServiceType="specialUse" declared in manifest (required API 34+).
+ * The ongoing notification shows a live countdown ticker while monitoring is active.
  */
 class CountdownService : Service() {
 

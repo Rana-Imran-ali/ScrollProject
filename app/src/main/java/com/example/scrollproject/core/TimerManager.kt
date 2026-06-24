@@ -12,13 +12,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 /**
- * TimerManager — global countdown singleton.
+ * TimerManager — the brain of the countdown.
  *
- * Supports multiple apps simultaneously:
- *  • Every non-blocked app in the map is always "active" (no isMonitoringActive flag).
- *  • The in-memory map is updated immediately on start() so checkForegroundState()
- *    can find the app right away.
- *  • Daily date-based reset is applied lazily when the DB flow emits.
+ * - Keeps a map of monitored apps in memory.
+ * - Ticks down an app's remaining time only while that app is in the foreground.
+ * - Saves progress to the database every 10 seconds (and immediately on expiry).
+ * - Resets all daily limits at midnight automatically.
  */
 object TimerManager {
 
@@ -35,7 +34,7 @@ object TimerManager {
     private val monitoredAppsMap = java.util.concurrent.ConcurrentHashMap<String, MonitoredAppEntity>()
     private var currentSelectedPackage: String? = null
 
-    // ─── Public state (reflects selected app) ────────────────────────────────
+    // ─── Live state exposed to the UI (flows update whenever TimerManager changes) ─
 
     private val _remainingSeconds = MutableStateFlow(0L)
     val remainingSeconds: StateFlow<Long> = _remainingSeconds.asStateFlow()
@@ -243,7 +242,7 @@ object TimerManager {
     fun hasAnyActiveMonitoring(): Boolean =
         monitoredAppsMap.values.any { !it.isBlocked && it.remainingSeconds > 0 }
 
-    // ─── Accessibility bridge ─────────────────────────────────────────────────
+    // ─── Called by AccessibilityService (or fallback polling) on every app switch ─
 
     fun setActiveForegroundPackage(pkg: String?) {
         synchronized(lock) {
@@ -263,10 +262,8 @@ object TimerManager {
     // ─── Internal tick engine ─────────────────────────────────────────────────
 
     /**
-     * Decides whether to start or stop the tick loop.
-     *
-     * Rule: tick only when the foreground app is in our map AND not blocked.
-     * If the foreground app changes, the loop restarts for the new app.
+     * Start ticking if the current foreground app is one we're monitoring (and not blocked).
+     * Stop ticking if the user switched to a different app.
      */
     private fun checkForegroundState() {
         val fgPkg = activeForegroundPackage

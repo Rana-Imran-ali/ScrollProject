@@ -10,23 +10,15 @@ import android.view.accessibility.AccessibilityEvent
 import com.example.scrollproject.core.TimerManager
 
 /**
- * ScrollGuardAccessibilityService — primary foreground-app detector & enforcer.
+ * ScrollGuardAccessibilityService — the primary enforcer.
  *
- * Enforcement logic on expiry:
- *  ┌─────────────────────────────────────────────────────────────────────────┐
- *  │ 1. Timer reaches 0 → onTimerExpired callback fires (IO thread).         │
- *  │ 2. Capture expiredPackage before TimerManager.stop() clears it.         │
- *  │ 3. On main thread: check activeForegroundPackage == expiredPackage.     │
- *  │    YES → performGlobalAction(GLOBAL_ACTION_HOME) + expiry notification. │
- *  │    NO  → app not in foreground; just post the expiry notification.      │
- *  │ 4. Post-expiry guard: if user reopens the app later, step 3 repeats.   │
- *  └─────────────────────────────────────────────────────────────────────────┘
+ * How it works:
+ * 1. Android calls onAccessibilityEvent() every time any app comes to the foreground.
+ * 2. We tell TimerManager which package is now in front.
+ * 3. If the timer reaches 0, TimerManager calls onTimerExpired → we press the Home button.
+ * 4. If the user reopens a blocked app later, we press Home again.
  *
- * Android 12–15 compatibility:
- *  • GLOBAL_ACTION_HOME is an Accessibility API — bypasses all background
- *    activity-start restrictions introduced in Android 10, 12, 14, and 15.
- *  • isConnected flag lets CountdownService skip UsageStats polling while
- *    this service is running, saving battery.
+ * When this service is connected, CountdownService skips its polling loop (saves battery).
  */
 class ScrollGuardAccessibilityService : AccessibilityService() {
 
